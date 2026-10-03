@@ -1,0 +1,92 @@
+name: Android build
+
+on:
+  push:
+    paths:
+      - "android/**"
+      - ".github/workflows/android-build.yml"
+  pull_request:
+    paths:
+      - "android/**"
+      - ".github/workflows/android-build.yml"
+  workflow_dispatch: {}
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Ensure required Android SDK packages
+        # GitHub-hosted ubuntu runners ship an Android SDK preinstalled (ANDROID_HOME is
+        # already set) — no separate setup-android action needed, one less thing to break.
+        # Installing explicitly (rather than trusting whatever happens to be preinstalled)
+        # keeps this pinned to what the app actually targets.
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" "build-tools;34.0.0" >/dev/null
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Assemble debug APK
+        # `| tee` on its own hides gradlew's real exit code behind tee's (always 0) —
+        # explicitly propagate the first pipeline command's status via PIPESTATUS so a
+        # real build failure doesn't get reported as a passing step.
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --stacktrace 2>&1 | tee /tmp/assemble.log
+          exit ${PIPESTATUS[0]}
+
+      - name: List build outputs (diagnostic)
+        if: always()
+        run: |
+          echo "::notice::pwd=$(pwd)"
+          find app/build -maxdepth 4 -type d 2>&1 | sed 's/^/::notice::dir: /' || echo "::notice::app/build not found at all"
+          find . -maxdepth 6 -iname "*.apk" 2>&1 | sed 's/^/::notice::apk found: /' || true
+          echo "::notice::--- last 15 lines of gradle output, regardless of reported outcome ---"
+          tail -n 15 /tmp/assemble.log | sed 's/^/::notice::/'
+
+      - name: Surface assemble failure as annotations
+        # Actions log downloads redirect to blob storage that isn't reachable from every
+        # environment developing this repo; annotations are readable through the plain
+        # REST API instead, so a failure here is always diagnosable from just that API.
+        if: failure()
+        run: |
+          grep -E "^e: |error:|FAILURE|Exception|BUILD FAILED|Unresolved reference|cannot find symbol" /tmp/assemble.log | tail -n 30 | sed 's/^/::error::/' || true
+          echo "::error::--- last 20 lines of build output ---"
+          tail -n 20 /tmp/assemble.log | sed 's/^/::error::/'
+
+      # The APK is the thing that matters (an installable build); lint findings are
+      # useful signal but shouldn't block getting that artifact, so it runs after and
+      # never fails the job — its own findings are still surfaced as annotations below.
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: markaz-sayana-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Run lint
+        id: lint
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ./gradlew lintDebug --stacktrace 2>&1 | tee /tmp/lint.log
+          exit ${PIPESTATUS[0]}
+
+      - name: Surface lint failure as annotations
+        if: steps.lint.outcome == 'failure'
+        run: |
+          grep -E "^e: |error:|FAILURE|Exception|BUILD FAILED" /tmp/lint.log | tail -n 30 | sed 's/^/::warning::/' || true
+          echo "::warning::--- last 20 lines of lint output (non-blocking) ---"
+          tail -n 20 /tmp/lint.log | sed 's/^/::warning::/'

@@ -1,0 +1,190 @@
+name: Backend CI
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  workflow_dispatch: {}
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app_user
+          POSTGRES_PASSWORD: app_pass
+          POSTGRES_DB: maintenance_center
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://app_user:app_pass@localhost:5432/maintenance_center
+      JWT_SECRET: ci-test-secret
+      PORT: 3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply schema
+        run: npm run migrate
+
+      - name: Seed demo data
+        run: npm run seed
+
+      - name: Start API
+        run: npm start &
+
+      - name: Wait for API to be ready
+        run: |
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:3000/health >/dev/null; then
+              echo "API is up"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API did not become ready in time" >&2
+          exit 1
+
+      - name: Smoke test key endpoints
+        run: |
+          set -e
+
+          login() {
+            curl -sf -X POST http://localhost:3000/api/auth/login \
+              -H 'Content-Type: application/json' \
+              -d "{\"identifier\":\"$1\",\"password\":\"Passw0rd!\"}" \
+              | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).token))"
+          }
+
+          MONA=$(login mona@markazsayana.eg)
+          MAHMOUD=$(login mahmoud@markazsayana.eg)
+          KHALED=$(login khaled@markazsayana.eg)
+
+          check() {
+            echo "checking $2"
+            code=$(curl -s -o /tmp/resp.json -w "%{http_code}" -H "Authorization: Bearer $1" "$2")
+            if [ "$code" != "200" ]; then
+              echo "FAILED ($code): $2"
+              cat /tmp/resp.json
+              exit 1
+            fi
+          }
+
+          check "$MONA" "http://localhost:3000/api/dashboard/reception"
+          check "$MAHMOUD" "http://localhost:3000/api/work-orders/mine"
+          check "$MAHMOUD" "http://localhost:3000/api/work-orders/1"
+          check "$MAHMOUD" "http://localhost:3000/api/technicians/me/performance"
+          check "$MONA" "http://localhost:3000/api/work-orders?status=new,assigned"
+          check "$MONA" "http://localhost:3000/api/customers?limit=5"
+          check "$MONA" "http://localhost:3000/api/customers/1"
+          check "$KHALED" "http://localhost:3000/api/dashboard/manager"
+          check "$KHALED" "http://localhost:3000/api/inventory?filter=low"
+          check "$KHALED" "http://localhost:3000/api/technicians/roster"
+          check "$KHALED" "http://localhost:3000/api/reports?period=month"
+          check "$KHALED" "http://localhost:3000/api/employees"
+
+          echo "checking change-password round-trip"
+          cp_code=$(curl -s -o /tmp/cp.json -w "%{http_code}" -X POST http://localhost:3000/api/auth/change-password \
+            -H "Authorization: Bearer $KHALED" -H 'Content-Type: application/json' \
+            -d '{"currentPassword":"Passw0rd!","newPassword":"TempPassw0rd!"}')
+          if [ "$cp_code" != "200" ]; then echo "FAILED ($cp_code): change-password"; cat /tmp/cp.json; exit 1; fi
+          curl -sf -X POST http://localhost:3000/api/auth/change-password \
+            -H "Authorization: Bearer $KHALED" -H 'Content-Type: application/json' \
+            -d '{"currentPassword":"TempPassw0rd!","newPassword":"Passw0rd!"}' >/dev/null
+
+          echo "checking quote -> approve round-trip on work order 1"
+          quote_code=$(curl -s -o /tmp/quote.json -w "%{http_code}" -X PATCH http://localhost:3000/api/work-orders/1/quote \
+            -H "Authorization: Bearer $MAHMOUD" -H 'Content-Type: application/json' \
+            -d '{"estimatedCost":1200,"note":"CI check"}')
+          if [ "$quote_code" != "200" ] || ! grep -q '"status":"awaiting_approval"' /tmp/quote.json; then
+            echo "FAILED ($quote_code): send quote"; cat /tmp/quote.json; exit 1
+          fi
+          approve_code=$(curl -s -o /tmp/approve.json -w "%{http_code}" -X POST http://localhost:3000/api/work-orders/1/approve -H "Authorization: Bearer $KHALED")
+          if [ "$approve_code" != "200" ] || ! grep -q '"status":"in_progress"' /tmp/approve.json; then
+            echo "FAILED ($approve_code): approve quote"; cat /tmp/approve.json; exit 1
+          fi
+
+          echo "checking reject on a seeded awaiting-approval work order (WO-2411, id 8)"
+          reject_code=$(curl -s -o /tmp/reject.json -w "%{http_code}" -X POST http://localhost:3000/api/work-orders/8/reject \
+            -H "Authorization: Bearer $KHALED" -H 'Content-Type: application/json' -d '{"reason":"CI check"}')
+          if [ "$reject_code" != "200" ] || ! grep -q '"status":"rejected"' /tmp/reject.json; then
+            echo "FAILED ($reject_code): reject quote"; cat /tmp/reject.json; exit 1
+          fi
+
+          echo "checking employee create -> deactivate -> login blocked"
+          create_code=$(curl -s -o /tmp/emp.json -w "%{http_code}" -X POST http://localhost:3000/api/employees \
+            -H "Authorization: Bearer $KHALED" -H 'Content-Type: application/json' \
+            -d '{"name":"CI Test","role":"reception","email":"ci-test@markazsayana.eg"}')
+          if [ "$create_code" != "201" ]; then echo "FAILED ($create_code): create employee"; cat /tmp/emp.json; exit 1; fi
+          EMP_ID=$(node -e "console.log(require('/tmp/emp.json').employee.id)")
+          EMP_PASSWORD=$(node -e "console.log(require('/tmp/emp.json').temporaryPassword)")
+          deactivate_code=$(curl -s -o /tmp/emp2.json -w "%{http_code}" -X PATCH "http://localhost:3000/api/employees/$EMP_ID" \
+            -H "Authorization: Bearer $KHALED" -H 'Content-Type: application/json' -d '{"active":false}')
+          if [ "$deactivate_code" != "200" ]; then echo "FAILED ($deactivate_code): deactivate employee"; cat /tmp/emp2.json; exit 1; fi
+          login_after_code=$(curl -s -o /tmp/emp3.json -w "%{http_code}" -X POST http://localhost:3000/api/auth/login \
+            -H 'Content-Type: application/json' -d "{\"identifier\":\"ci-test@markazsayana.eg\",\"password\":\"$EMP_PASSWORD\"}")
+          if [ "$login_after_code" != "403" ]; then
+            echo "FAILED ($login_after_code): deactivated employee should not be able to log in with correct password"; cat /tmp/emp3.json; exit 1
+          fi
+
+          echo "checking CSV export"
+          csv_code=$(curl -s -o /tmp/report.csv -w "%{http_code}" -H "Authorization: Bearer $KHALED" "http://localhost:3000/api/reports/export?period=month")
+          if [ "$csv_code" != "200" ] || ! grep -q "code,customer_name" /tmp/report.csv; then
+            echo "FAILED ($csv_code): CSV export"; cat /tmp/report.csv; exit 1
+          fi
+
+          echo "checking public site is served"
+          for page in / /track.html /style.css; do
+            page_code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:3000$page")
+            if [ "$page_code" != "200" ]; then echo "FAILED ($page_code): static page $page"; exit 1; fi
+          done
+
+          echo "checking public request submission + tracking round-trip"
+          pub_code=$(curl -s -o /tmp/pub.json -w "%{http_code}" -X POST http://localhost:3000/api/public/requests \
+            -H 'Content-Type: application/json' \
+            -d '{"name":"CI Customer","phone":"01099990000","branch":"مدينة نصر","deviceType":"مكيف","issueDescription":"CI check"}')
+          if [ "$pub_code" != "201" ]; then echo "FAILED ($pub_code): public request submit"; cat /tmp/pub.json; exit 1; fi
+          PUB_WO_CODE=$(node -e "console.log(require('/tmp/pub.json').code)")
+
+          track_code=$(curl -s -o /tmp/track.json -w "%{http_code}" "http://localhost:3000/api/public/requests/$PUB_WO_CODE?phone=01099990000")
+          if [ "$track_code" != "200" ] || ! grep -q '"status":"new"' /tmp/track.json; then
+            echo "FAILED ($track_code): public tracking"; cat /tmp/track.json; exit 1
+          fi
+
+          wrong_phone_code=$(curl -s -o /tmp/track2.json -w "%{http_code}" "http://localhost:3000/api/public/requests/$PUB_WO_CODE?phone=01000000001")
+          if [ "$wrong_phone_code" != "404" ]; then
+            echo "FAILED ($wrong_phone_code): tracking with wrong phone should 404"; cat /tmp/track2.json; exit 1
+          fi
+
+          echo "checking the online request is visible to reception with source=online"
+          seen_code=$(curl -s -o /tmp/seen.json -w "%{http_code}" -H "Authorization: Bearer $MONA" "http://localhost:3000/api/work-orders?search=$PUB_WO_CODE")
+          if [ "$seen_code" != "200" ] || ! grep -q '"source":"online"' /tmp/seen.json; then
+            echo "FAILED ($seen_code): online request not visible with correct source"; cat /tmp/seen.json; exit 1
+          fi
+
+          echo "All smoke checks passed."

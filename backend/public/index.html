@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>الهندسة المتحدة — صيانة الأجهزة المنزلية وأجهزة الأسواق الحرة</title>
+<meta name="description" content="الهندسة المتحدة لصيانة جميع الأجهزة المنزلية وأجهزة الأسواق الحرة — اطلب صيانة أونلاين وتتبع حالة طلبك." />
+<link rel="icon" href="/favicon.png" type="image/png" />
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <div class="brand-row">
+      <img src="/logo.png" alt="الهندسة المتحدة" class="brand-logo" />
+      <div>
+        <div class="brand">الهندسة المتحدة</div>
+        <div class="brand-sub">صيانة الأجهزة المنزلية وأجهزة الأسواق الحرة</div>
+      </div>
+    </div>
+    <nav class="site-nav">
+      <a href="#request">اطلب صيانة</a>
+      <a href="/track.html">تتبع طلبك</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="container">
+    <h1>صيانة أجهزتك بثقة</h1>
+    <p>أجهزة منزلية وأجهزة أسواق حرة — مكيفات، غسالات، ثلاجات، سخانات، وبوتاجاز — فنيون معتمدون، وتتبع لحالة طلبك خطوة بخطوة.</p>
+    <a href="#request" class="btn btn-primary">اطلب صيانة الآن</a>
+  </div>
+</section>
+
+<section class="services">
+  <div class="container">
+    <h2>الأجهزة التي نصلحها</h2>
+    <div class="service-grid">
+      <div class="service-card"><span class="emoji">❄️</span>مكيفات</div>
+      <div class="service-card"><span class="emoji">🧺</span>غسالات</div>
+      <div class="service-card"><span class="emoji">🧊</span>ثلاجات</div>
+      <div class="service-card"><span class="emoji">🔥</span>سخانات</div>
+      <div class="service-card"><span class="emoji">🍳</span>بوتاجاز</div>
+      <div class="service-card"><span class="emoji">🛬</span>أجهزة أسواق حرة</div>
+    </div>
+    <p class="branches">فروعنا: مدينة نصر · المعادي · الرحاب</p>
+  </div>
+</section>
+
+<section class="request-section" id="request">
+  <div class="container">
+    <h2>اطلب صيانة</h2>
+    <div class="card">
+      <form id="requestForm" novalidate>
+        <div class="field hp-field" aria-hidden="true">
+          <label for="website">اتركه فارغاً</label>
+          <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />
+        </div>
+
+        <div class="field">
+          <label for="name">الاسم</label>
+          <input type="text" id="name" name="name" required maxlength="120" />
+        </div>
+
+        <div class="row-2">
+          <div class="field">
+            <label for="phone">رقم الهاتف</label>
+            <input type="tel" id="phone" name="phone" required maxlength="20" placeholder="01xxxxxxxxx" />
+          </div>
+          <div class="field">
+            <label for="branch">الفرع</label>
+            <select id="branch" name="branch" required>
+              <option value="">اختر الفرع</option>
+              <option value="مدينة نصر">مدينة نصر</option>
+              <option value="المعادي">المعادي</option>
+              <option value="الرحاب">الرحاب</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="address">العنوان</label>
+          <input type="text" id="address" name="address" maxlength="300" />
+        </div>
+
+        <div class="row-2">
+          <div class="field">
+            <label for="deviceType">نوع الجهاز</label>
+            <select id="deviceType" name="deviceType" required>
+              <option value="">اختر الجهاز</option>
+              <option value="مكيف">مكيف</option>
+              <option value="غسالة">غسالة</option>
+              <option value="ثلاجة">ثلاجة</option>
+              <option value="سخان">سخان</option>
+              <option value="بوتاجاز">بوتاجاز</option>
+              <option value="أخرى">جهاز آخر / من الأسواق الحرة</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="brand">الماركة (اختياري)</label>
+            <input type="text" id="brand" name="brand" maxlength="60" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="issueDescription">وصف العطل</label>
+          <textarea id="issueDescription" name="issueDescription" required maxlength="500"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="submitBtn">إرسال الطلب</button>
+
+        <div class="form-msg" id="formMsg"></div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<footer>الهندسة المتحدة — نظام إدارة الصيانة</footer>
+
+<script>
+const form = document.getElementById('requestForm');
+const msg = document.getElementById('formMsg');
+const submitBtn = document.getElementById('submitBtn');
+
+function showMsg(kind, html) {
+  msg.className = 'form-msg show ' + kind;
+  msg.innerHTML = html;
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'جارٍ الإرسال…';
+  msg.className = 'form-msg';
+
+  const payload = {
+    name: document.getElementById('name').value,
+    phone: document.getElementById('phone').value,
+    branch: document.getElementById('branch').value,
+    address: document.getElementById('address').value,
+    deviceType: document.getElementById('deviceType').value,
+    brand: document.getElementById('brand').value,
+    issueDescription: document.getElementById('issueDescription').value,
+    website: document.getElementById('website').value,
+  };
+
+  try {
+    const res = await fetch('/api/public/requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showMsg('error', data.error || 'تعذّر إرسال الطلب، حاول مرة أخرى');
+      return;
+    }
+    showMsg(
+      'success',
+      'تم استلام طلبك بنجاح. كود المتابعة:<span class="code">' + data.code + '</span>' +
+      'احتفظ بهذا الكود ورقم هاتفك لمتابعة حالة الطلب من <a href="/track.html">صفحة تتبع الطلب</a>.',
+    );
+    form.reset();
+  } catch (err) {
+    showMsg('error', 'تعذّر الاتصال بالخادم، تحقق من الإنترنت وحاول مرة أخرى');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'إرسال الطلب';
+  }
+});
+</script>
+
+</body>
+</html>

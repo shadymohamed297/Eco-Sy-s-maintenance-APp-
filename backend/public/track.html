@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>تتبع طلب الصيانة — الهندسة المتحدة</title>
+<link rel="icon" href="/favicon.png" type="image/png" />
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <div class="brand-row">
+      <img src="/logo.png" alt="الهندسة المتحدة" class="brand-logo" />
+      <div>
+        <div class="brand">الهندسة المتحدة</div>
+        <div class="brand-sub">صيانة الأجهزة المنزلية وأجهزة الأسواق الحرة</div>
+      </div>
+    </div>
+    <nav class="site-nav">
+      <a href="/">الرئيسية</a>
+      <a href="/#request">اطلب صيانة</a>
+    </nav>
+  </div>
+</header>
+
+<section class="track-section">
+  <div class="container">
+    <h2 style="margin-top:36px;">تتبع حالة طلبك</h2>
+    <div class="card">
+      <form id="trackForm" novalidate>
+        <div class="field">
+          <label for="code">كود الطلب</label>
+          <input type="text" id="code" name="code" required placeholder="WO-2423" />
+        </div>
+        <div class="field">
+          <label for="phone">رقم الهاتف المسجّل بالطلب</label>
+          <input type="tel" id="phone" name="phone" required placeholder="01xxxxxxxxx" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="trackBtn">تتبّع</button>
+        <div class="form-msg" id="trackMsg"></div>
+      </form>
+
+      <div class="track-result" id="trackResult">
+        <div class="row"><span class="label">الكود</span><span id="rCode"></span></div>
+        <div class="row"><span class="label">الحالة</span><span id="rStatus"></span></div>
+        <div class="row"><span class="label">الجهاز</span><span id="rDevice"></span></div>
+        <div class="row"><span class="label">فني معيّن</span><span id="rTech"></span></div>
+        <div class="row"><span class="label">تاريخ الطلب</span><span id="rDate"></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>الهندسة المتحدة — نظام إدارة الصيانة</footer>
+
+<script>
+const form = document.getElementById('trackForm');
+const msg = document.getElementById('trackMsg');
+const result = document.getElementById('trackResult');
+const btn = document.getElementById('trackBtn');
+
+function statusClass(status) {
+  if (status === 'closed') return 'status-closed';
+  if (status === 'rejected') return 'status-rejected';
+  return 'status-open';
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  btn.disabled = true;
+  btn.textContent = 'جارٍ البحث…';
+  msg.className = 'form-msg';
+  result.className = 'track-result';
+
+  const code = document.getElementById('code').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+
+  try {
+    const res = await fetch(`/api/public/requests/${encodeURIComponent(code)}?phone=${encodeURIComponent(phone)}`);
+    const data = await res.json();
+    if (!res.ok) {
+      msg.className = 'form-msg show error';
+      msg.textContent = data.error || 'تعذّر العثور على الطلب';
+      return;
+    }
+
+    document.getElementById('rCode').textContent = data.code;
+    document.getElementById('rStatus').innerHTML = `<span class="status-badge ${statusClass(data.status)}">${data.statusLabel}</span>`;
+    document.getElementById('rDevice').textContent = data.deviceType;
+    document.getElementById('rTech').textContent = data.technicianAssigned ? 'نعم' : 'لم يُعيَّن بعد';
+    document.getElementById('rDate').textContent = new Date(data.createdAt).toLocaleDateString('ar-EG');
+    result.className = 'track-result show';
+  } catch (err) {
+    msg.className = 'form-msg show error';
+    msg.textContent = 'تعذّر الاتصال بالخادم، تحقق من الإنترنت وحاول مرة أخرى';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'تتبّع';
+  }
+});
+</script>
+
+</body>
+</html>
