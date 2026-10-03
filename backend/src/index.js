@@ -26,7 +26,8 @@ const publicRouter = require('./routes/public');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+// Default 100kb is too small for a base64-encoded signature/photo upload in the body.
+app.use(express.json({ limit: '8mb' }));
 
 app.get('/health', (req, res) => res.json({ ok: true }));
 

@@ -52,11 +52,8 @@ Android Studio at all.
 
 ## Known gaps / deliberate simplifications
 
-- The customer signature pad on the invoice screen is a real freehand `Canvas` drawing surface
-  for visual fidelity, but the strokes aren't persisted — the "signed" record sent to the API is
-  the typed name field beneath it.
-- Barcode scan and before/after photos are visually present but inert — no camera/upload
-  backend exists yet.
+- Before/after photos use the device camera and are uploaded as base64, same as the signature —
+  no cloud storage/CDN, matching the scale of this app.
 - Inventory reorder emails and automated WhatsApp delivery are not implemented — those are
   external integrations out of scope for this version.
 

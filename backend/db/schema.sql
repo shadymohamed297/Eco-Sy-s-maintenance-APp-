@@ -134,3 +134,15 @@ ALTER TABLE work_orders ADD CONSTRAINT work_orders_status_check
 ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'staff';
 ALTER TABLE work_orders DROP CONSTRAINT IF EXISTS work_orders_source_check;
 ALTER TABLE work_orders ADD CONSTRAINT work_orders_source_check CHECK (source IN ('staff', 'online'));
+
+-- The customer's actual signature strokes, not just the typed name under it.
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS signature_image TEXT;
+
+-- Before/after repair photos, taken with the device camera on-site.
+CREATE TABLE IF NOT EXISTS work_order_photos (
+  id SERIAL PRIMARY KEY,
+  work_order_id INTEGER NOT NULL REFERENCES work_orders(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('before', 'after')),
+  image_data TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

@@ -187,4 +187,32 @@ jobs:
             echo "FAILED ($seen_code): online request not visible with correct source"; cat /tmp/seen.json; exit 1
           fi
 
+          echo "checking before/after photo upload on work order 1"
+          TINY_PNG="iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+          photo_code=$(curl -s -o /tmp/photo.json -w "%{http_code}" -X POST http://localhost:3000/api/work-orders/1/photos \
+            -H "Authorization: Bearer $MAHMOUD" -H 'Content-Type: application/json' \
+            -d "{\"kind\":\"before\",\"imageData\":\"$TINY_PNG\"}")
+          if [ "$photo_code" != "201" ] || ! grep -q '"kind":"before"' /tmp/photo.json; then
+            echo "FAILED ($photo_code): photo upload"; cat /tmp/photo.json; exit 1
+          fi
+
+          echo "checking invalid photo kind is rejected"
+          bad_photo_code=$(curl -s -o /tmp/photo2.json -w "%{http_code}" -X POST http://localhost:3000/api/work-orders/1/photos \
+            -H "Authorization: Bearer $MAHMOUD" -H 'Content-Type: application/json' \
+            -d '{"kind":"sideways","imageData":"xxx"}')
+          if [ "$bad_photo_code" != "400" ]; then
+            echo "FAILED ($bad_photo_code): invalid photo kind should 400"; cat /tmp/photo2.json; exit 1
+          fi
+
+          echo "checking close with signature image persists it"
+          close_code=$(curl -s -o /tmp/close.json -w "%{http_code}" -X POST http://localhost:3000/api/work-orders/1/close \
+            -H "Authorization: Bearer $MAHMOUD" -H 'Content-Type: application/json' \
+            -d "{\"laborFee\":450,\"warrantyDiscount\":0,\"paymentMethod\":\"cash\",\"signatureName\":\"CI Customer\",\"signatureImage\":\"$TINY_PNG\"}")
+          if [ "$close_code" != "200" ] || ! grep -q '"status":"closed"' /tmp/close.json; then
+            echo "FAILED ($close_code): close with signature"; cat /tmp/close.json; exit 1
+          fi
+          if ! python3 -c "import json; d=json.load(open('/tmp/close.json'))['workOrder']; exit(0 if d['invoice']['signatureImage'] else 1)"; then
+            echo "FAILED: signatureImage was not persisted"; cat /tmp/close.json; exit 1
+          fi
+
           echo "All smoke checks passed."

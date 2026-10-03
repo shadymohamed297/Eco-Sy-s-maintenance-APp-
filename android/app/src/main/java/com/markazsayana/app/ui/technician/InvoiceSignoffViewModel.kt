@@ -64,7 +64,7 @@ class InvoiceSignoffViewModel @Inject constructor(
     fun selectPaymentMethod(method: String) = _uiState.update { it.copy(paymentMethod = method) }
     fun onSignatureNameChange(v: String) = _uiState.update { it.copy(signatureName = v) }
 
-    fun confirm() {
+    fun confirm(signatureImage: String?) {
         val s = _uiState.value
         val invoice = s.invoice ?: return
         if (s.signatureName.isBlank()) {
@@ -80,6 +80,7 @@ class InvoiceSignoffViewModel @Inject constructor(
                     warrantyDiscount = invoice.warrantyDiscount,
                     paymentMethod = s.paymentMethod,
                     signatureName = s.signatureName,
+                    signatureImage = signatureImage,
                     customerRating = null,
                 )
                 _uiState.update { it.copy(submitting = false, closed = true) }

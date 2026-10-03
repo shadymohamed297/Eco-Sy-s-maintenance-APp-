@@ -2,7 +2,9 @@ package com.markazsayana.app.ui.technician
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
+import android.util.Base64
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -38,9 +40,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.markazsayana.app.ui.components.FullScreenError
@@ -62,6 +67,27 @@ import com.markazsayana.app.ui.theme.TextSecondary
 import com.markazsayana.app.ui.theme.TextTertiary
 import com.markazsayana.app.ui.theme.UrgentRed
 import com.markazsayana.app.util.egp
+import java.io.ByteArrayOutputStream
+
+private fun signatureBitmapBase64(points: List<Offset>, width: Int, height: Int): String? {
+    if (points.size < 2 || width <= 0 || height <= 0) return null
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bitmap)
+    canvas.drawColor(android.graphics.Color.WHITE)
+    val paint = android.graphics.Paint().apply {
+        color = android.graphics.Color.rgb(20, 38, 77)
+        strokeWidth = 4f
+        style = android.graphics.Paint.Style.STROKE
+        strokeCap = android.graphics.Paint.Cap.ROUND
+        isAntiAlias = true
+    }
+    for (i in 1 until points.size) {
+        canvas.drawLine(points[i - 1].x, points[i - 1].y, points[i].x, points[i].y, paint)
+    }
+    val stream = ByteArrayOutputStream()
+    bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+    return Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+}
 
 private fun whatsAppInvoiceMessage(code: String, deviceType: String, total: String): String =
     "شكراً لتعاملكم مع الهندسة المتحدة.\nتم تسليم طلب الصيانة $code ($deviceType).\nإجمالي الفاتورة: $total"
@@ -126,6 +152,8 @@ fun InvoiceSignoffScreen(
             else -> {
                 val wo = state.workOrder!!
                 val invoice = state.invoice!!
+                var signaturePoints by remember { mutableStateOf(listOf<Offset>()) }
+                var signatureSize by remember { mutableStateOf(IntSize.Zero) }
                 Column(modifier = Modifier.padding(padding).fillMaxSize()) {
                     Row(
                         modifier = Modifier.fillMaxWidth().background(CardWhite).padding(horizontal = 16.dp, vertical = 10.dp),
@@ -188,7 +216,11 @@ fun InvoiceSignoffScreen(
                         item {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(text = "توقيع العميل باستلام الجهاز", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
-                                SignaturePad()
+                                SignaturePad(
+                                    points = signaturePoints,
+                                    onPointsChange = { signaturePoints = it },
+                                    onSizeChanged = { signatureSize = it },
+                                )
                                 OutlinedTextField(
                                     value = state.signatureName,
                                     onValueChange = viewModel::onSignatureNameChange,
@@ -222,7 +254,10 @@ fun InvoiceSignoffScreen(
                     Box(modifier = Modifier.background(CardWhite).padding(16.dp)) {
                         PrimaryButton(
                             text = if (state.submitting) "جارِ التأكيد…" else "تأكيد التسليم وإغلاق الأمر",
-                            onClick = viewModel::confirm,
+                            onClick = {
+                                val signatureImage = signatureBitmapBase64(signaturePoints, signatureSize.width, signatureSize.height)
+                                viewModel.confirm(signatureImage)
+                            },
                             backgroundColor = SuccessGreen,
                             enabled = !state.submitting,
                         )
@@ -242,9 +277,13 @@ private fun InvoiceLine(label: String, value: String, valueColor: Color = TextPr
 }
 
 @Composable
-private fun SignaturePad() {
-    var points by remember { mutableStateOf(listOf<Offset>()) }
+private fun SignaturePad(
+    points: List<Offset>,
+    onPointsChange: (List<Offset>) -> Unit,
+    onSizeChanged: (IntSize) -> Unit,
+) {
     var hasDrawn by remember { mutableStateOf(false) }
+    val currentPoints = rememberUpdatedState(points)
 
     Box(
         modifier = Modifier
@@ -252,10 +291,11 @@ private fun SignaturePad() {
             .height(116.dp)
             .background(CardWhite, CardShape)
             .border(1.dp, BorderMedium, CardShape)
+            .onSizeChanged(onSizeChanged)
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragStart = { hasDrawn = true },
-                    onDrag = { change, _ -> points = points + change.position },
+                    onDrag = { change, _ -> onPointsChange(currentPoints.value + change.position) },
                 )
             },
     ) {

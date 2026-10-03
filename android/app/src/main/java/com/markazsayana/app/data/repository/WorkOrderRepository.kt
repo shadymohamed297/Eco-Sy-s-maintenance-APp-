@@ -16,6 +16,7 @@ import com.markazsayana.app.data.remote.SendQuoteRequest
 import com.markazsayana.app.data.remote.TechnicianDto
 import com.markazsayana.app.data.remote.UpdateDeviceRequest
 import com.markazsayana.app.data.remote.UpdateWorkOrderRequest
+import com.markazsayana.app.data.remote.UploadPhotoRequest
 import com.markazsayana.app.data.remote.WorkOrderDto
 import com.markazsayana.app.data.remote.WorkOrderListResponse
 import com.markazsayana.app.data.remote.WorkOrderSummaryDto
@@ -83,11 +84,15 @@ class WorkOrderRepository @Inject constructor(private val api: ApiService) {
         warrantyDiscount: Double,
         paymentMethod: String,
         signatureName: String,
+        signatureImage: String?,
         customerRating: Int?,
     ): WorkOrderDto = api.closeWorkOrder(
         workOrderId,
-        CloseWorkOrderRequest(laborFee, warrantyDiscount, paymentMethod, signatureName, customerRating)
+        CloseWorkOrderRequest(laborFee, warrantyDiscount, paymentMethod, signatureName, signatureImage, customerRating)
     ).workOrder
+
+    suspend fun uploadPhoto(workOrderId: Int, kind: String, imageData: String): WorkOrderDto =
+        api.uploadPhoto(workOrderId, UploadPhotoRequest(kind, imageData)).workOrder
 
     suspend fun sendQuote(workOrderId: Int, estimatedCost: Double, note: String?): WorkOrderDto =
         api.sendQuote(workOrderId, SendQuoteRequest(estimatedCost, note)).workOrder

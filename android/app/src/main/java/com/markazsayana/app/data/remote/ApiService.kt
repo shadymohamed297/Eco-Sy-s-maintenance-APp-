@@ -81,6 +81,9 @@ interface ApiService {
     @POST("api/work-orders/{id}/close")
     suspend fun closeWorkOrder(@Path("id") id: Int, @Body request: CloseWorkOrderRequest): WorkOrderResponse
 
+    @POST("api/work-orders/{id}/photos")
+    suspend fun uploadPhoto(@Path("id") id: Int, @Body request: UploadPhotoRequest): WorkOrderResponse
+
     @PATCH("api/work-orders/{id}/quote")
     suspend fun sendQuote(@Path("id") id: Int, @Body request: SendQuoteRequest): WorkOrderResponse
 

@@ -1,5 +1,14 @@
 package com.markazsayana.app.ui.technician
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.util.Base64
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -34,11 +43,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.markazsayana.app.data.remote.ChecklistItemDto
 import com.markazsayana.app.data.remote.PartUsedDto
+import com.markazsayana.app.data.remote.PhotoDto
+import java.io.ByteArrayOutputStream
+import java.io.File
 import com.markazsayana.app.ui.components.FullScreenError
 import com.markazsayana.app.ui.components.FullScreenLoading
 import com.markazsayana.app.ui.components.OutlinedCard
@@ -60,6 +78,27 @@ import com.markazsayana.app.ui.theme.TextPrimary
 import com.markazsayana.app.ui.theme.TextTertiary
 import com.markazsayana.app.ui.theme.UrgentRed
 import com.markazsayana.app.util.egp
+
+private fun createPhotoCaptureUri(context: android.content.Context): Uri {
+    val dir = File(context.cacheDir, "photos").apply { mkdirs() }
+    val file = File(dir, "photo_${System.currentTimeMillis()}.jpg")
+    return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+}
+
+// Downscales to a reasonable upload size (the backend stores these as base64 TEXT, no CDN/resizing on its end).
+private fun compressCapturedPhoto(context: android.content.Context, uri: Uri): String? {
+    val original = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) } ?: return null
+    val maxDim = 1280
+    val scale = minOf(1f, maxDim.toFloat() / maxOf(original.width, original.height))
+    val resized = if (scale < 1f) {
+        Bitmap.createScaledBitmap(original, (original.width * scale).toInt(), (original.height * scale).toInt(), true)
+    } else {
+        original
+    }
+    val stream = ByteArrayOutputStream()
+    resized.compress(Bitmap.CompressFormat.JPEG, 75, stream)
+    return Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+}
 
 @Composable
 fun WorkOrderExecutionScreen(
@@ -151,15 +190,16 @@ fun WorkOrderExecutionScreen(
                         }
 
                         item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(CardWhite, CardShape)
-                                    .border(1.dp, BorderMedium, CardShape)
-                                    .padding(18.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(text = "إضافة صور قبل / بعد", style = MaterialTheme.typography.labelLarge, color = BrandNavy, textAlign = TextAlign.Center)
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text(text = "صور قبل / بعد", style = MaterialTheme.typography.labelLarge, color = TextTertiary)
+                                PhotoCaptureSection(
+                                    photos = wo.photos,
+                                    uploading = state.uploadingPhoto,
+                                    onPhotoCaptured = viewModel::uploadPhoto,
+                                )
+                                state.photoError?.let {
+                                    Text(text = it, color = UrgentRed, style = MaterialTheme.typography.labelSmall)
+                                }
                             }
                         }
 
@@ -254,6 +294,117 @@ private fun SendQuoteDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("إلغاء", color = TextTertiary) } },
     )
+}
+
+@Composable
+private fun PhotoCaptureSection(
+    photos: List<PhotoDto>,
+    uploading: Boolean,
+    onPhotoCaptured: (kind: String, imageData: String) -> Unit,
+) {
+    val context = LocalContext.current
+    var pendingKind by remember { mutableStateOf<String?>(null) }
+    var pendingUri by remember { mutableStateOf<Uri?>(null) }
+
+    val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        val uri = pendingUri
+        val kind = pendingKind
+        pendingUri = null
+        pendingKind = null
+        if (success && uri != null && kind != null) {
+            compressCapturedPhoto(context, uri)?.let { onPhotoCaptured(kind, it) }
+        }
+    }
+
+    val requestPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val kind = pendingKind
+        if (granted && kind != null) {
+            val uri = createPhotoCaptureUri(context)
+            pendingUri = uri
+            takePicture.launch(uri)
+        } else {
+            pendingKind = null
+        }
+    }
+
+    fun startCapture(kind: String) {
+        pendingKind = kind
+        val hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        if (hasPermission) {
+            val uri = createPhotoCaptureUri(context)
+            pendingUri = uri
+            takePicture.launch(uri)
+        } else {
+            requestPermission.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PhotoCaptureButton(
+                label = if (uploading) "جارِ الحفظ…" else "صورة قبل",
+                enabled = !uploading,
+                onClick = { startCapture("before") },
+                modifier = Modifier.weight(1f),
+            )
+            PhotoCaptureButton(
+                label = if (uploading) "جارِ الحفظ…" else "صورة بعد",
+                enabled = !uploading,
+                onClick = { startCapture("after") },
+                modifier = Modifier.weight(1f),
+            )
+        }
+        if (photos.isNotEmpty()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                photos.forEach { photo -> PhotoThumbnail(photo) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PhotoCaptureButton(label: String, enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .background(CardWhite, CardShape)
+            .border(1.dp, BorderMedium, CardShape)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text = label, style = MaterialTheme.typography.labelLarge, color = BrandNavy, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun PhotoThumbnail(photo: PhotoDto) {
+    val bitmap = remember(photo.id) {
+        runCatching {
+            val bytes = Base64.decode(photo.imageData, Base64.DEFAULT)
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+        }.getOrNull()
+    }
+    val label = if (photo.kind == "before") "قبل" else "بعد"
+    Box(
+        modifier = Modifier
+            .size(64.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .border(1.dp, BorderMedium, RoundedCornerShape(8.dp)),
+    ) {
+        bitmap?.let {
+            Image(
+                bitmap = it,
+                contentDescription = label,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        }
+        Box(
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color.Black.copy(alpha = 0.55f)).padding(vertical = 2.dp),
+        ) {
+            Text(text = label, color = Color.White, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        }
+    }
 }
 
 @Composable

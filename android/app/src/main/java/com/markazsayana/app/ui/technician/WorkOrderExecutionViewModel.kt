@@ -25,6 +25,8 @@ data class WorkOrderExecutionUiState(
     val submittingQuote: Boolean = false,
     val quoteError: String? = null,
     val quoteSent: Boolean = false,
+    val uploadingPhoto: Boolean = false,
+    val photoError: String? = null,
 )
 
 @HiltViewModel
@@ -107,6 +109,18 @@ class WorkOrderExecutionViewModel @Inject constructor(
                 _uiState.update { it.copy(workOrder = updated, addingPart = false, newPartName = "") }
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "تعذّر إضافة القطعة") }
+            }
+        }
+    }
+
+    fun uploadPhoto(kind: String, imageData: String) {
+        _uiState.update { it.copy(uploadingPhoto = true, photoError = null) }
+        viewModelScope.launch {
+            try {
+                val updated = repository.uploadPhoto(workOrderId, kind, imageData)
+                _uiState.update { it.copy(uploadingPhoto = false, workOrder = updated) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(uploadingPhoto = false, photoError = "تعذّر حفظ الصورة") }
             }
         }
     }

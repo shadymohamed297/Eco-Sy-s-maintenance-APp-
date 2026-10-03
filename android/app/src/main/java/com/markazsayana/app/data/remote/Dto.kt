@@ -236,6 +236,7 @@ data class WorkOrderDto(
     val technician: TechnicianRefDto? = null,
     val checklist: List<ChecklistItemDto>,
     val parts: List<PartUsedDto>,
+    val photos: List<PhotoDto> = emptyList(),
     val invoice: InvoiceDto? = null,
 )
 
@@ -263,12 +264,16 @@ data class ChecklistItemDto(val id: Int, val label: String, val status: String, 
 data class PartUsedDto(val id: Int, val inventoryItemId: Int? = null, val name: String, val price: Double, val status: String)
 
 @Serializable
+data class PhotoDto(val id: Int, val kind: String, val imageData: String, val createdAt: String)
+
+@Serializable
 data class InvoiceDto(
     val laborFee: Double,
     val warrantyDiscount: Double,
     val taxRate: Double,
     val paymentMethod: String? = null,
     val signatureName: String? = null,
+    val signatureImage: String? = null,
     val signedAt: String? = null,
     val customerRating: Int? = null,
 )
@@ -339,8 +344,12 @@ data class CloseWorkOrderRequest(
     val warrantyDiscount: Double,
     val paymentMethod: String,
     val signatureName: String,
+    val signatureImage: String? = null,
     val customerRating: Int? = null,
 )
+
+@Serializable
+data class UploadPhotoRequest(val kind: String, val imageData: String)
 
 // ── Inventory ────────────────────────────────────────────────────────
 

@@ -40,6 +40,10 @@ async function loadWorkOrderDetail(id) {
     [id]
   );
   const invoice = await pool.query('SELECT * FROM invoices WHERE work_order_id = $1', [id]);
+  const photos = await pool.query(
+    'SELECT * FROM work_order_photos WHERE work_order_id = $1 ORDER BY created_at ASC',
+    [id]
+  );
 
   return {
     id: wo.id,
@@ -99,10 +103,17 @@ async function loadWorkOrderDetail(id) {
           taxRate: Number(invoice.rows[0].tax_rate),
           paymentMethod: invoice.rows[0].payment_method,
           signatureName: invoice.rows[0].signature_name,
+          signatureImage: invoice.rows[0].signature_image,
           signedAt: invoice.rows[0].signed_at,
           customerRating: invoice.rows[0].customer_rating,
         }
       : null,
+    photos: photos.rows.map((p) => ({
+      id: p.id,
+      kind: p.kind,
+      imageData: p.image_data,
+      createdAt: p.created_at,
+    })),
   };
 }
 
@@ -429,6 +440,23 @@ router.post('/:id/parts', requireAuth, requireRole('technician'), requireOwnTech
   return res.status(201).json({ workOrder: await loadWorkOrderDetail(req.params.id) });
 });
 
+router.post('/:id/photos', requireAuth, requireRole('technician'), requireOwnTechnician, async (req, res) => {
+  const { kind, imageData } = req.body || {};
+  if (!['before', 'after'].includes(kind)) {
+    return res.status(400).json({ error: 'kind must be before or after' });
+  }
+  if (!imageData || typeof imageData !== 'string') {
+    return res.status(400).json({ error: 'imageData is required' });
+  }
+
+  await pool.query(
+    `INSERT INTO work_order_photos (work_order_id, kind, image_data) VALUES ($1,$2,$3)`,
+    [req.params.id, kind, imageData]
+  );
+
+  return res.status(201).json({ workOrder: await loadWorkOrderDetail(req.params.id) });
+});
+
 router.get('/:id/invoice-preview', requireAuth, requireRole('technician'), requireOwnTechnician, async (req, res) => {
   const { laborFee = 450, warrantyDiscount } = req.query;
   const wo = await loadWorkOrderDetail(req.params.id);
@@ -452,7 +480,7 @@ router.get('/:id/invoice-preview', requireAuth, requireRole('technician'), requi
 });
 
 router.post('/:id/close', requireAuth, requireRole('technician'), requireOwnTechnician, async (req, res) => {
-  const { laborFee, warrantyDiscount = 0, paymentMethod, signatureName, customerRating } = req.body || {};
+  const { laborFee, warrantyDiscount = 0, paymentMethod, signatureName, signatureImage, customerRating } = req.body || {};
   if (laborFee === undefined || !paymentMethod || !signatureName) {
     return res.status(400).json({ error: 'laborFee, paymentMethod and signatureName are required' });
   }
@@ -461,13 +489,14 @@ router.post('/:id/close', requireAuth, requireRole('technician'), requireOwnTech
   }
 
   await pool.query(
-    `INSERT INTO invoices (work_order_id, labor_fee, warranty_discount, tax_rate, payment_method, signature_name, signed_at, customer_rating)
-     VALUES ($1,$2,$3,0.14,$4,$5,now(),$6)
+    `INSERT INTO invoices (work_order_id, labor_fee, warranty_discount, tax_rate, payment_method, signature_name, signature_image, signed_at, customer_rating)
+     VALUES ($1,$2,$3,0.14,$4,$5,$6,now(),$7)
      ON CONFLICT (work_order_id) DO UPDATE SET
        labor_fee = EXCLUDED.labor_fee, warranty_discount = EXCLUDED.warranty_discount,
        payment_method = EXCLUDED.payment_method, signature_name = EXCLUDED.signature_name,
+       signature_image = EXCLUDED.signature_image,
        signed_at = now(), customer_rating = EXCLUDED.customer_rating`,
-    [req.params.id, laborFee, warrantyDiscount, paymentMethod, signatureName, customerRating || null]
+    [req.params.id, laborFee, warrantyDiscount, paymentMethod, signatureName, signatureImage || null, customerRating || null]
   );
 
   await pool.query(
