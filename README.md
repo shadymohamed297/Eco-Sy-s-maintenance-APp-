@@ -1,4 +1,4 @@
-# United Engineering — Maintenance Management System
+# United Engineering — Maintenance Management  ECO System
 
 A complete system for running a home-appliance maintenance business (reception / field
 technician / manager roles), with a native Android app and a public customer-facing website,
