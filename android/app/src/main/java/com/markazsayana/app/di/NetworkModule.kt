@@ -18,6 +18,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
@@ -80,6 +81,12 @@ object NetworkModule {
             level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
         }
         return OkHttpClient.Builder()
+            // The free hosting tier this app's backend typically runs on sleeps after
+            // inactivity and can take 50+ seconds to wake on the first request — OkHttp's
+            // 10s default would wrongly surface that as "couldn't connect to server".
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
             .addInterceptor(dynamicBaseUrlInterceptor)
             .addInterceptor(authInterceptor)
             .addInterceptor(sessionExpiryInterceptor)
