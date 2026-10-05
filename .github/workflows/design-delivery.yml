@@ -1,0 +1,43 @@
+name: Design files download
+on:
+  push:
+    branches: [codex/design-delivery]
+    paths:
+      - '.github/workflows/design-delivery.yml'
+      - 'docs/brand/references/**'
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: PDF download
+        uses: actions/upload-artifact@v4
+        with:
+          name: United-Engineering-Design-System-PDF
+          path: docs/brand/design-system.pdf
+          if-no-files-found: error
+          retention-days: 14
+      - name: Poster reference images
+        uses: actions/upload-artifact@v4
+        with:
+          name: United-Engineering-Poster-References
+          path: docs/brand/references/*.png
+          if-no-files-found: error
+          retention-days: 14
+      - name: Complete designer handoff
+        uses: actions/upload-artifact@v4
+        with:
+          name: United-Engineering-Complete-Design-Pack
+          path: |
+            docs/brand/design-system.pdf
+            docs/brand/design-system.html
+            docs/brand/design-system.md
+            docs/brand/tokens.json
+            docs/brand/message-to-designer.txt
+            docs/brand/START-HERE.txt
+            docs/brand/assets/
+            docs/brand/references/
+          if-no-files-found: error
+          retention-days: 14
