@@ -2,6 +2,8 @@ package com.markazsayana.app.ui.manager
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +33,7 @@ import com.markazsayana.app.data.remote.FaultDistributionEntry
 import com.markazsayana.app.data.remote.ManagerKpis
 import com.markazsayana.app.data.remote.WeeklyRevenuePoint
 import com.markazsayana.app.ui.components.BottomNavBar
+import com.markazsayana.app.ui.components.BrandHeader
 import com.markazsayana.app.ui.components.navItemsForRole
 import com.markazsayana.app.ui.components.ChangePasswordIconButton
 import com.markazsayana.app.ui.components.FullScreenError
@@ -38,6 +41,7 @@ import com.markazsayana.app.ui.components.FullScreenLoading
 import com.markazsayana.app.ui.components.LogoutIconButton
 import com.markazsayana.app.ui.components.OutlinedCard
 import com.markazsayana.app.ui.navigation.Routes
+import com.markazsayana.app.ui.workorders.RefreshOnResume
 import com.markazsayana.app.ui.theme.AccentOrange
 import com.markazsayana.app.ui.theme.CardWhite
 import com.markazsayana.app.ui.theme.Headline26Bold
@@ -72,6 +76,7 @@ fun ManagerDashboardScreen(
     viewModel: ManagerDashboardViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    RefreshOnResume { viewModel.refresh() }
 
     Scaffold(
         containerColor = SurfaceScreen,
@@ -85,6 +90,7 @@ fun ManagerDashboardScreen(
                 onPeriodChange = viewModel::load,
                 onLogout = viewModel::logout,
                 onManageEmployees = onManageEmployees,
+                onNavigate = onNavTab,
                 modifier = Modifier.padding(padding),
             )
         }
@@ -97,19 +103,20 @@ private fun DashboardContent(
     onPeriodChange: (String) -> Unit,
     onLogout: () -> Unit,
     onManageEmployees: () -> Unit,
+    onNavigate: (String) -> Unit,
     modifier: Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxWidth().background(SurfaceDark).padding(horizontal = 16.dp, vertical = 8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Column {
+                Column(Modifier.weight(1f)) {
                     Text(text = "لوحة الأداء · ${currentMonthYearLabelCairo()}", style = MaterialTheme.typography.bodySmall, color = TextOnDarkMuted)
-                    Text(text = "الهندسة المتحدة", style = MaterialTheme.typography.titleLarge, color = CardWhite, modifier = Modifier.padding(top = 3.dp))
+                    BrandHeader(compact = true, onDark = true, modifier = Modifier.padding(top = 3.dp))
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(48.dp)
                             .clip(RoundedCornerShape(50))
                             .background(CardWhite.copy(alpha = 0.18f))
                             .clickable { onManageEmployees() },
@@ -121,7 +128,7 @@ private fun DashboardContent(
                     LogoutIconButton(onConfirmLogout = onLogout)
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 14.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 14.dp).horizontalScroll(rememberScrollState())) {
                 periodTabs.forEach { (key, label) ->
                     val selected = key == state.period
                     Box(
@@ -134,14 +141,36 @@ private fun DashboardContent(
                         Text(text = label, style = MaterialTheme.typography.bodySmall, color = if (selected) SurfaceDark else CardWhite)
                     }
                 }
+                androidx.compose.material3.TextButton(onClick = { onPeriodChange(state.period) }) { Text("تحديث", color = CardWhite) }
             }
         }
 
         LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            item {
+                Text("إدارة المركز", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ManagementShortcut("طلب صيانة جديد", { onNavigate(Routes.NEW_REQUEST) }, Modifier.weight(1f))
+                        ManagementShortcut("طلبات الموافقة", { onNavigate(Routes.PENDING_APPROVALS) }, Modifier.weight(1f))
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ManagementShortcut("المخزون وقطع الغيار", { onNavigate(Routes.INVENTORY) }, Modifier.weight(1f))
+                        ManagementShortcut("التقارير", { onNavigate(Routes.REPORTS) }, Modifier.weight(1f))
+                    }
+                    ManagementShortcut("إدارة الموظفين", onManageEmployees)
+                }
+            }
             item { KpiGrid(state.data.kpis) }
             item { WeeklyRevenueCard(state.data.weeklyRevenue) }
             item { FaultDistributionCard(state.data.faultDistribution) }
         }
+    }
+}
+
+@Composable
+private fun ManagementShortcut(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    OutlinedCard(modifier = modifier.clickable(onClick = onClick), padding = PaddingValues(14.dp)) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = BrandNavy)
     }
 }
 
@@ -189,7 +218,7 @@ private fun KpiTile(label: String, value: String, delta: String?, deltaColor: Co
 
 @Composable
 private fun WeeklyRevenueCard(points: List<WeeklyRevenuePoint>) {
-    val maxRevenue = (points.maxOfOrNull { it.revenue } ?: 1).coerceAtLeast(1)
+    val maxRevenue = (points.maxOfOrNull { it.revenue } ?: 1.0).coerceAtLeast(1.0)
     val total = points.sumOf { it.revenue }
     OutlinedCard(shape = LargeCardShape, padding = PaddingValues(16.dp)) {
         Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
@@ -202,7 +231,7 @@ private fun WeeklyRevenueCard(points: List<WeeklyRevenuePoint>) {
             modifier = Modifier.fillMaxWidth().height(78.dp).padding(top = 12.dp),
         ) {
             points.forEachIndexed { index, point ->
-                val fraction = point.revenue.toFloat() / maxRevenue
+                val fraction = (point.revenue / maxRevenue).toFloat()
                 val isLast = index == points.lastIndex
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.weight(1f)) {
                     Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.BottomCenter) {
@@ -214,7 +243,7 @@ private fun WeeklyRevenueCard(points: List<WeeklyRevenuePoint>) {
                                 .background(if (isLast) BrandNavy else RevenueBarLight),
                         )
                     }
-                    Text(text = "أ${(index + 1).arabic()}", style = MaterialTheme.typography.labelSmall, color = TextTertiary)
+                    Text(text = runCatching { java.time.LocalDate.parse(point.weekStart.take(10)).dayOfMonth.arabic() }.getOrDefault(point.weekStart.take(10)), style = MaterialTheme.typography.labelSmall, color = TextTertiary)
                 }
             }
         }

@@ -22,6 +22,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,19 +48,22 @@ import com.markazsayana.app.ui.theme.BrandNavyChipBg
 import com.markazsayana.app.ui.theme.SurfaceScreen
 import com.markazsayana.app.ui.theme.TextPrimary
 import com.markazsayana.app.ui.theme.TextTertiary
+import com.markazsayana.app.ui.workorders.RefreshOnResume
 
 @Composable
 fun CustomerDetailScreen(
     onBack: () -> Unit,
+    onOpenWorkOrder: (Int) -> Unit,
     viewModel: CustomerDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    RefreshOnResume(viewModel::load)
 
     Scaffold(containerColor = SurfaceScreen) { padding ->
         when (val s = state) {
             is CustomerDetailUiState.Loading -> FullScreenLoading(Modifier.padding(padding))
             is CustomerDetailUiState.Error -> FullScreenError(s.message, onRetry = viewModel::load, modifier = Modifier.padding(padding))
-            is CustomerDetailUiState.Success -> Content(s.data, onBack, onSave = viewModel::updateCustomer, modifier = Modifier.padding(padding))
+            is CustomerDetailUiState.Success -> Content(s.data, onBack, onOpenWorkOrder, onSave = viewModel::updateCustomer, saving = s.saving, saveError = s.saveError, savedVersion = s.savedVersion, modifier = Modifier.padding(padding))
         }
     }
 }
@@ -68,10 +72,15 @@ fun CustomerDetailScreen(
 private fun Content(
     data: CustomerDetailResponse,
     onBack: () -> Unit,
+    onOpenWorkOrder: (Int) -> Unit,
     onSave: (name: String, phone: String, address: String?) -> Unit,
+    saving: Boolean,
+    saveError: String?,
+    savedVersion: Int,
     modifier: Modifier,
 ) {
     var showEditDialog by remember { mutableStateOf(false) }
+    LaunchedEffect(savedVersion) { if (savedVersion > 0) showEditDialog = false }
 
     Column(modifier = modifier.fillMaxSize()) {
         Row(
@@ -107,7 +116,9 @@ private fun Content(
             items(data.devices, key = { it.id }) { d -> DeviceRow(d) }
 
             item { Text(text = "سجل الطلبات", style = MaterialTheme.typography.titleSmall, color = TextPrimary, modifier = Modifier.padding(top = 6.dp)) }
-            items(data.workOrders, key = { it.id }) { wo -> WorkOrderHistoryRow(wo) }
+            if (data.devices.isEmpty()) item { Text("لم تُسجّل أجهزة لهذا العميل بعد.", color = TextTertiary) }
+            if (data.workOrders.isEmpty()) item { Text("لا توجد طلبات سابقة لهذا العميل.", color = TextTertiary) }
+            items(data.workOrders, key = { it.id }) { wo -> WorkOrderHistoryRow(wo, onClick = { onOpenWorkOrder(wo.id) }) }
         }
     }
 
@@ -116,10 +127,11 @@ private fun Content(
             name = data.customer.name,
             phone = data.customer.phone,
             address = data.customer.address,
-            onDismiss = { showEditDialog = false },
+            saving = saving,
+            saveError = saveError,
+            onDismiss = { if (!saving) showEditDialog = false },
             onSave = { name, phone, address ->
                 onSave(name, phone, address)
-                showEditDialog = false
             },
         )
     }
@@ -130,13 +142,15 @@ private fun EditCustomerDialog(
     name: String,
     phone: String,
     address: String?,
+    saving: Boolean,
+    saveError: String?,
     onDismiss: () -> Unit,
     onSave: (name: String, phone: String, address: String?) -> Unit,
 ) {
     var editedName by remember { mutableStateOf(name) }
     var editedPhone by remember { mutableStateOf(phone) }
     var editedAddress by remember { mutableStateOf(address ?: "") }
-    val canSave = editedName.isNotBlank() && editedPhone.isNotBlank()
+    val canSave = !saving && editedName.isNotBlank() && editedPhone.isNotBlank()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -147,6 +161,7 @@ private fun EditCustomerDialog(
                     value = editedName, onValueChange = { editedName = it }, label = { Text("الاسم") }, singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy), modifier = Modifier.fillMaxWidth(),
                 )
+                saveError?.let { Text(it, color = com.markazsayana.app.ui.theme.UrgentRed, style = MaterialTheme.typography.bodySmall) }
                 OutlinedTextField(
                     value = editedPhone, onValueChange = { editedPhone = it }, label = { Text("رقم الهاتف") }, singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy), modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
@@ -161,9 +176,9 @@ private fun EditCustomerDialog(
             TextButton(
                 enabled = canSave,
                 onClick = { onSave(editedName.trim(), editedPhone.trim(), editedAddress.trim().ifBlank { null }) },
-            ) { Text("حفظ", color = if (canSave) BrandNavy else TextTertiary) }
+            ) { Text(if (saving) "جارِ الحفظ…" else "حفظ", color = if (canSave) BrandNavy else TextTertiary) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("إلغاء", color = TextTertiary) } },
+        dismissButton = { TextButton(enabled = !saving, onClick = onDismiss) { Text("رجوع", color = TextTertiary) } },
     )
 }
 
@@ -188,8 +203,8 @@ private fun DeviceRow(device: DeviceDto) {
 }
 
 @Composable
-private fun WorkOrderHistoryRow(wo: CustomerWorkOrderDto) {
-    OutlinedCard {
+private fun WorkOrderHistoryRow(wo: CustomerWorkOrderDto, onClick: () -> Unit) {
+    OutlinedCard(modifier = Modifier.clickable(onClick = onClick)) {
         Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = "${wo.deviceType} — ${wo.issueDescription.take(28)}", style = MaterialTheme.typography.bodyMedium, color = TextPrimary)

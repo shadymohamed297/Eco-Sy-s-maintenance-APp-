@@ -29,12 +29,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.markazsayana.app.data.remote.AppointmentDto
 import com.markazsayana.app.data.remote.PendingApprovals
 import com.markazsayana.app.data.remote.ReceptionCounts
 import com.markazsayana.app.ui.components.BottomNavBar
+import com.markazsayana.app.ui.components.BrandHeader
 import com.markazsayana.app.ui.components.ChangePasswordIconButton
 import com.markazsayana.app.ui.components.FullScreenError
 import com.markazsayana.app.ui.components.FullScreenLoading
@@ -94,7 +96,6 @@ fun ReceptionDashboardScreen(
                 modifier = Modifier.padding(padding),
                 firstName = s.user?.name?.trim()?.split(" ")?.firstOrNull() ?: "",
                 initials = s.user?.initials ?: "",
-                branch = s.data.branch ?: s.user?.branch ?: "",
                 counts = s.data.counts,
                 pendingApprovals = s.data.pendingApprovals,
                 appointments = s.data.todaysAppointments,
@@ -110,7 +111,6 @@ fun ReceptionDashboardScreen(
 private fun ReceptionDashboardContent(
     firstName: String,
     initials: String,
-    branch: String,
     counts: ReceptionCounts,
     pendingApprovals: PendingApprovals,
     appointments: List<AppointmentDto>,
@@ -128,18 +128,23 @@ private fun ReceptionDashboardContent(
                 .background(BrandNavy)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
+            BrandHeader(compact = true, onDark = true, modifier = Modifier.padding(bottom = 12.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Column {
+                Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                     Text(
-                        text = "فرع $branch · $todayLabel",
+                        text = todayLabel,
                         style = MaterialTheme.typography.bodySmall,
                         color = CardWhite.copy(alpha = 0.8f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = "أهلاً $firstName",
+                        text = if (firstName.isBlank()) "الاستقبال" else "أهلاً يا $firstName",
                         style = MaterialTheme.typography.titleLarge,
                         color = CardWhite,
                         modifier = Modifier.padding(top = 2.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -195,12 +200,12 @@ private fun ReceptionDashboardContent(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = OrangeTextDark,
                             )
-                            Text(
-                                text = "تجاوزت ${pendingApprovals.oldestHours.arabic()} ساعة في المخزن",
+                            pendingApprovals.oldestHours?.let { hours -> Text(
+                                text = "أقدم طلب ينتظر منذ ${hours.arabic()} ساعة",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = OrangeTextMuted,
                                 modifier = Modifier.padding(top = 3.dp),
-                            )
+                            ) }
                         }
                     }
                 }
@@ -210,13 +215,17 @@ private fun ReceptionDashboardContent(
                 Text(text = "مواعيد اليوم", style = MaterialTheme.typography.titleSmall, color = TextPrimary)
             }
 
+            if (appointments.isEmpty()) {
+                item { OutlinedCard { Text("لا توجد مواعيد مسجلة اليوم", color = TextTertiary, style = MaterialTheme.typography.bodyMedium) } }
+            }
+
             items(appointments, key = { it.id }) { appt ->
                 AppointmentRow(appt)
             }
         }
 
         Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            PrimaryButton(text = "+ استلام طلب صيانة", onClick = onNewRequest, backgroundColor = AccentOrange)
+            PrimaryButton(text = "طلب صيانة جديد", onClick = onNewRequest, backgroundColor = AccentOrange, contentColor = BrandNavy)
         }
     }
 }
@@ -231,7 +240,7 @@ private fun StatTile(label: String, value: String, valueColor: Color, modifier: 
 
 @Composable
 private fun AppointmentRow(appt: AppointmentDto) {
-    val scheduled = appt.scheduledAt?.let { Instant.parse(it) }
+    val scheduled = appt.scheduledAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
     OutlinedCard {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Column(
@@ -246,12 +255,12 @@ private fun AppointmentRow(appt: AppointmentDto) {
             Box(modifier = Modifier.width(1.dp).height(36.dp).background(Divider))
             Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
                 Text(text = "${appt.deviceType} — ${appt.issueDescription.take(28)}", style = MaterialTheme.typography.bodyLarge, color = TextPrimary)
-                Text(text = "${appt.branch ?: ""} · ${appt.customerName}", style = MaterialTheme.typography.bodySmall, color = TextTertiary, modifier = Modifier.padding(top = 3.dp))
+                Text(text = appt.customerName, style = MaterialTheme.typography.bodySmall, color = TextTertiary, modifier = Modifier.padding(top = 3.dp))
             }
             if (appt.technicianName != null) {
-                StatusChip(text = "مُعيَّن", background = BrandNavyChipBg, contentColor = BrandNavy)
+                StatusChip(text = appt.technicianName, background = BrandNavyChipBg, contentColor = BrandNavy)
             } else {
-                StatusChip(text = "بلا فني", background = OrangeChipBg, contentColor = OrangeTextDark)
+                StatusChip(text = "بانتظار فني", background = OrangeChipBg, contentColor = OrangeTextDark)
             }
         }
     }

@@ -4,7 +4,7 @@ services:
     runtime: node
     rootDir: backend
     plan: free
-    buildCommand: npm install && npm run migrate
+    buildCommand: npm ci && npm run migrate
     startCommand: npm start
     healthCheckPath: /health
     envVars:

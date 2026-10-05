@@ -19,6 +19,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -35,26 +36,29 @@ import com.markazsayana.app.ui.components.FullScreenLoading
 import com.markazsayana.app.ui.components.OutlinedCard
 import com.markazsayana.app.ui.components.navItemsForRole
 import com.markazsayana.app.ui.navigation.Routes
+import com.markazsayana.app.ui.workorders.RefreshOnResume
 import com.markazsayana.app.ui.theme.CardWhite
 import com.markazsayana.app.ui.theme.BrandNavy
 import com.markazsayana.app.ui.theme.SurfaceScreen
 import com.markazsayana.app.ui.theme.TextPrimary
 import com.markazsayana.app.ui.theme.TextTertiary
+import com.markazsayana.app.ui.theme.UrgentRed
 import com.markazsayana.app.util.arabic
 
-private val nav = navItemsForRole("reception")
 
 @Composable
 fun CustomersListScreen(
     onOpenCustomer: (Int) -> Unit,
     onNavTab: (String) -> Unit,
+    role: String = "reception",
     viewModel: CustomersListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    RefreshOnResume(viewModel::load)
 
     Scaffold(
         containerColor = SurfaceScreen,
-        bottomBar = { BottomNavBar(nav, Routes.CUSTOMERS_LIST, BrandNavy, onNavTab) },
+        bottomBar = { BottomNavBar(navItemsForRole(role), Routes.CUSTOMERS_LIST, BrandNavy, onNavTab) },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             Column(modifier = Modifier.fillMaxWidth().background(CardWhite).padding(16.dp)) {
@@ -69,6 +73,10 @@ fun CustomersListScreen(
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy),
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = viewModel::runSearch) { Text("بحث") }
+                    TextButton(onClick = viewModel::load) { Text("تحديث") }
+                }
             }
 
             when {
@@ -83,6 +91,13 @@ fun CustomersListScreen(
                 }
                 else -> LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(state.items, key = { it.id }) { c -> CustomerRow(c, onClick = { onOpenCustomer(c.id) }) }
+                    item {
+                        Text("${state.items.size.arabic()} من ${state.total.arabic()} عميل", style = MaterialTheme.typography.bodySmall, color = TextTertiary)
+                        state.moreError?.let { Text(it, color = UrgentRed) }
+                        if (state.nextOffset < state.total) TextButton(enabled = !state.loadingMore, onClick = viewModel::loadMore) {
+                            Text(if (state.loadingMore) "جارِ التحميل…" else "عرض المزيد من العملاء")
+                        }
+                    }
                 }
             }
         }

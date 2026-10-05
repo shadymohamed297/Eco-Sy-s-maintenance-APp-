@@ -10,4 +10,6 @@ import javax.inject.Singleton
 class TechnicianRepository @Inject constructor(private val api: ApiService) {
     suspend fun roster(): List<TechnicianRosterDto> = api.technicianRoster().technicians
     suspend fun myPerformance(): TechnicianPerformanceResponse = api.myPerformance()
+    suspend fun itinerary(id: Int, date: String) = api.technicianItinerary(id, date)
+    suspend fun history(id: Int, offset: Int = 0) = api.technicianHistory(id, offset = offset)
 }

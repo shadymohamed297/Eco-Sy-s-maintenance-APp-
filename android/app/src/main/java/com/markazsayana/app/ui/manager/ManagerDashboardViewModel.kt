@@ -9,6 +9,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import javax.inject.Inject
 
 sealed interface ManagerDashboardUiState {
@@ -25,22 +27,29 @@ class ManagerDashboardViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<ManagerDashboardUiState>(ManagerDashboardUiState.Loading)
     val uiState: StateFlow<ManagerDashboardUiState> = _uiState
+    private var request: Job? = null
+    private var currentPeriod = "month"
 
     init {
         load("month")
     }
 
     fun load(period: String) {
+        request?.cancel()
+        currentPeriod = period
         _uiState.value = ManagerDashboardUiState.Loading
-        viewModelScope.launch {
+        request = viewModelScope.launch {
             try {
                 val data = repository.manager(period)
                 _uiState.value = ManagerDashboardUiState.Success(period, data)
+            } catch (e: CancellationException) { throw e
             } catch (e: Exception) {
                 _uiState.value = ManagerDashboardUiState.Error("تعذّر تحميل لوحة الأداء")
             }
         }
     }
+
+    fun refresh() = load(currentPeriod)
 
     fun logout() {
         viewModelScope.launch { authRepository.logout() }

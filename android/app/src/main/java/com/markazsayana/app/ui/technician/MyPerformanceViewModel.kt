@@ -8,6 +8,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import javax.inject.Inject
 
 sealed interface MyPerformanceUiState {
@@ -24,17 +26,22 @@ class MyPerformanceViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<MyPerformanceUiState>(MyPerformanceUiState.Loading)
     val uiState: StateFlow<MyPerformanceUiState> = _uiState
 
+    private var loadJob: Job? = null
+
     init {
         load()
     }
 
     fun load() {
+        loadJob?.cancel()
         _uiState.value = MyPerformanceUiState.Loading
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             try {
                 _uiState.value = MyPerformanceUiState.Success(repository.myPerformance())
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                _uiState.value = MyPerformanceUiState.Error("تعذّر تحميل بيانات الأداء")
+                _uiState.value = MyPerformanceUiState.Error(technicianRequestError(e, "تعذّر تحميل تقرير الشغل. حاول مرة أخرى."))
             }
         }
     }

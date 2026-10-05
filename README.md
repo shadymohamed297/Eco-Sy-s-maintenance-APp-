@@ -1,24 +1,30 @@
-# United Engineering — Maintenance Management  ECO System
+# الهندسية المتحدة — نظام إدارة مركز الصيانة
 
-A complete system for running a home-appliance maintenance business (reception / field
-technician / manager roles), with a native Android app and a public customer-facing website,
-both backed by the same API and database.
+نظام لمركز **الهندسية المتحدة** في **الحدايق**، يجمع الاستقبال والفنيين والإدارة على قاعدة بيانات واحدة. يتضمن تطبيق أندرويد عربي وموقعًا لطلبات العملاء ومتابعتها.
 
-## Components
+## مكونات المشروع
 
-- **`backend/`** — Node.js + Express + PostgreSQL REST API (auth, work orders, customers,
-  technicians, inventory, dashboards, reports/CSV export), plus a static public website (online
-  repair requests + request tracking) served from the same server. See `backend/README.md` for
-  setup and the full API reference.
-- **`android/`** — Native Android app (Kotlin + Jetpack Compose + Material 3 + Hilt + Retrofit),
-  Arabic RTL, with three role-specific interfaces. See `android/README.md`.
-- **`DEPLOY.md`** — free hosting guide for the backend (Neon + Render).
-- **`.github/workflows/`** — CI for both the backend (full endpoint smoke tests) and the Android
-  app (build + lint, with the debug APK attached as a downloadable artifact).
+- **`backend/`**: واجهة API باستخدام Node.js وExpress وPostgreSQL، مع موقع العملاء. راجع [دليل الخادم](backend/README.md).
+- **`android/`**: تطبيق Kotlin وJetpack Compose، بواجهات للاستقبال والفني والمدير. راجع [دليل التطبيق](android/README.md).
+- **`DEPLOY.md`**: تعليمات إعداد الاستضافة.
+- **`.github/workflows/`**: اختبارات الخادم وبناء التطبيق وفحصه.
 
-## Quick start
+## ما يقدمه النظام
 
-1. Run the backend locally (`backend/README.md`) or deploy it for free (`DEPLOY.md`).
-2. Open `android/` in Android Studio and run it, or download the latest APK from the GitHub
-   Actions tab.
-3. Log in with one of the seeded demo accounts listed in `backend/README.md`.
+- تسجيل العملاء وأجهزتهم واستلام طلبات الصيانة، ثم تحديد الفني وموعد الزيارة.
+- متابعة الطلبات وسجل الإجراءات والعمل المنفذ وقطع الغيار والموافقات.
+- فواتير وتوقيع العميل، مع متابعة الإيرادات والتقارير والمخزون وحسابات الموظفين.
+- واجهة إدارة تجمع العملاء والطلبات والفنيين وجدول زياراتهم والفواتير.
+
+جدول الفني وسجل انتقالات حالة الطلب يعتمد على بيانات العمل المسجلة. تتبع الموقع الجغرافي المباشر يحتاج تكاملًا مستقلًا، ولا يعرض النظام مواقع أو مسافات تقديرية.
+
+## البداية
+
+1. جهّز قاعدة البيانات وشغّل الخادم وفق `backend/README.md`.
+2. أنشئ حساب المدير الأول بالطريقة الموضحة في دليل الخادم، ثم أضف حسابات فريق المركز من إدارة الموظفين.
+3. افتح `android/` في Android Studio أو استخدم ملف APK الناتج عن GitHub Actions.
+4. اضبط رابط النظام من شاشة الدخول، ثم استخدم حساب الموظف الفعلي.
+
+لا تعتمد نسخة التشغيل على حسابات أو عملاء أو طلبات تجريبية. استخدم قاعدة بيانات منفصلة للاختبارات، وراجع أي بيانات قديمة قبل حذفها.
+
+شعار المركز الموجود في التطبيق هو الصورة الأصلية المقدمة من صاحب المركز، مع الاحتفاظ بخلفيتها السوداء وألوانها.

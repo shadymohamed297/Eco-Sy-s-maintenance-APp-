@@ -1,6 +1,7 @@
 package com.markazsayana.app.data.remote
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class UserDto(
@@ -26,6 +27,9 @@ data class MeResponse(val user: UserDto)
 
 @Serializable
 data class ChangePasswordRequest(val currentPassword: String, val newPassword: String)
+
+@Serializable
+data class ChangePasswordResponse(val ok: Boolean, val token: String, val user: UserDto)
 
 // ── Employee management (manager) ───────────────────────────────────
 
@@ -88,7 +92,7 @@ data class ReceptionDashboardResponse(
 data class ReceptionCounts(val new: Int, val inProgress: Int, val late: Int)
 
 @Serializable
-data class PendingApprovals(val count: Int, val oldestHours: Int, val items: List<ApprovalItemDto>)
+data class PendingApprovals(val count: Int, val oldestHours: Int? = null, val items: List<ApprovalItemDto>)
 
 @Serializable
 data class ApprovalItemDto(
@@ -135,7 +139,7 @@ data class ManagerKpis(
 )
 
 @Serializable
-data class WeeklyRevenuePoint(val weekStart: String, val revenue: Int)
+data class WeeklyRevenuePoint(val weekStart: String, val revenue: Double)
 
 @Serializable
 data class FaultDistributionEntry(val deviceType: String, val total: Int, val pct: Double)
@@ -154,6 +158,8 @@ data class TechnicianDto(
     val distanceKm: Double? = null,
     val tasksToday: Int,
     val busyUntil: String? = null,
+    val isBusy: Boolean = false,
+    val currentWorkOrderCode: String? = null,
 )
 
 // ── Customers & devices ─────────────────────────────────────────────
@@ -238,6 +244,16 @@ data class WorkOrderDto(
     val parts: List<PartUsedDto>,
     val photos: List<PhotoDto> = emptyList(),
     val invoice: InvoiceDto? = null,
+    val timeline: List<WorkOrderActivityDto> = emptyList(),
+)
+
+@Serializable
+data class WorkOrderActivityDto(
+    val id: Int,
+    val action: String,
+    val actorName: String? = null,
+    val createdAt: String,
+    val metadata: JsonObject = JsonObject(emptyMap()),
 )
 
 @Serializable
@@ -276,6 +292,9 @@ data class InvoiceDto(
     val signatureImage: String? = null,
     val signedAt: String? = null,
     val customerRating: Int? = null,
+    val partsTotal: Double = 0.0,
+    val subtotal: Double = 0.0,
+    val total: Double = 0.0,
 )
 
 @Serializable
@@ -285,6 +304,7 @@ data class CreateWorkOrderRequest(
     val issueDescription: String,
     val priority: String,
     val branch: String?,
+    val serviceAddress: String? = null,
 )
 
 @Serializable
@@ -295,6 +315,9 @@ data class ChecklistUpdateRequest(val status: String, val note: String? = null)
 
 @Serializable
 data class AddPartRequest(val name: String, val inventoryItemId: Int? = null, val status: String = "used")
+
+@Serializable
+data class UsePartRequest(val status: String = "used", val inventoryItemId: Int? = null)
 
 @Serializable
 data class InvoicePreviewResponse(
@@ -358,7 +381,36 @@ data class InventoryResponse(
     val items: List<InventoryItemDto>,
     val pendingPurchaseOrders: Int,
     val consumptionThisMonth: Double,
+    val purchaseOrders: List<InventoryPurchaseOrderDto> = emptyList(),
 )
+
+@Serializable
+data class InventoryItemResponse(val item: InventoryItemDto)
+
+@Serializable
+data class SaveInventoryItemRequest(
+    val name: String,
+    val sku: String,
+    val category: String? = null,
+    val price: Double,
+    val quantity: Int,
+    val reorderThreshold: Int,
+)
+
+@Serializable
+data class InventoryPurchaseOrderDto(
+    val id: Int,
+    val inventoryItemId: Int,
+    val workOrderId: Int? = null,
+    val quantity: Int,
+    val status: String,
+    val createdAt: String,
+    val itemName: String? = null,
+    val workOrderCode: String? = null,
+)
+
+@Serializable
+data class InventoryPurchaseOrderResponse(val purchaseOrder: InventoryPurchaseOrderDto)
 
 @Serializable
 data class InventoryItemDto(
@@ -441,6 +493,13 @@ data class CustomerWorkOrderDto(
 data class TechnicianRosterResponse(val technicians: List<TechnicianRosterDto>)
 
 @Serializable
+data class TechnicianItineraryResponse(
+    val technician: TechnicianRosterDto,
+    val date: String,
+    val items: List<WorkOrderDto>,
+)
+
+@Serializable
 data class TechnicianRosterDto(
     val id: Int,
     val name: String,
@@ -487,16 +546,16 @@ data class ReportsResponse(
 )
 
 @Serializable
-data class ReportTotals(val completedCount: Int, val totalRevenue: Int, val avgRepairDays: Double? = null)
+data class ReportTotals(val completedCount: Int, val totalRevenue: Double, val avgRepairDays: Double? = null)
 
 @Serializable
-data class ReportByTechnician(val id: Int, val name: String, val completedCount: Int, val revenue: Int, val avgRating: Double? = null)
+data class ReportByTechnician(val id: Int, val name: String, val completedCount: Int, val revenue: Double, val avgRating: Double? = null)
 
 @Serializable
-data class ReportByBranch(val branch: String, val completedCount: Int, val revenue: Int)
+data class ReportByBranch(val branch: String, val completedCount: Int, val revenue: Double)
 
 @Serializable
-data class ReportByDeviceType(val deviceType: String, val completedCount: Int, val revenue: Int)
+data class ReportByDeviceType(val deviceType: String, val completedCount: Int, val revenue: Double)
 
 @Serializable
 data class ApiErrorResponse(val error: String)

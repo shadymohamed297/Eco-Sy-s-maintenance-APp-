@@ -1,6 +1,8 @@
 package com.markazsayana.app.ui.workorders
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -54,41 +56,36 @@ import com.markazsayana.app.ui.theme.SurfaceScreen
 import com.markazsayana.app.ui.theme.TextPrimary
 import com.markazsayana.app.ui.theme.TextTertiary
 import com.markazsayana.app.ui.theme.UrgentRed
-import com.markazsayana.app.util.dateLabelCairo
+import com.markazsayana.app.util.arabic
 import java.time.Instant
 
-private val nav = navItemsForRole("reception")
 
 @Composable
 fun WorkOrdersListScreen(
     onNavTab: (String) -> Unit,
+    role: String = "reception",
+    onOpenWorkOrder: (Int) -> Unit,
+    onNewRequest: () -> Unit,
     initialFilter: WorkOrderFilter? = null,
     viewModel: WorkOrdersListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    RefreshOnResume(viewModel::load)
 
     LaunchedEffect(initialFilter) {
         initialFilter?.let { viewModel.setInitialFilter(it) }
     }
 
-    state.selected?.let { wo ->
-        WorkOrderDetailDialog(
-            wo = wo,
-            actionInProgress = state.actionInProgress,
-            actionError = state.actionError,
-            onDismiss = { viewModel.select(null) },
-            onApprove = { viewModel.approve(wo.id) },
-            onReject = { reason -> viewModel.reject(wo.id, reason) },
-        )
-    }
-
     Scaffold(
         containerColor = SurfaceScreen,
-        bottomBar = { BottomNavBar(nav, Routes.WORK_ORDERS_LIST, BrandNavy, onNavTab) },
+        bottomBar = { BottomNavBar(navItemsForRole(role), Routes.WORK_ORDERS_LIST, BrandNavy, onNavTab) },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             Column(modifier = Modifier.fillMaxWidth().background(CardWhite).padding(16.dp)) {
-                Text(text = "الطلبات", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(text = "الطلبات", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
+                    TextButton(onClick = onNewRequest) { Text("طلب جديد") }
+                }
                 OutlinedTextField(
                     value = state.search,
                     onValueChange = viewModel::setSearch,
@@ -99,7 +96,11 @@ fun WorkOrdersListScreen(
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy),
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = viewModel::runSearch) { Text("بحث") }
+                    TextButton(onClick = viewModel::load) { Text("تحديث") }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 10.dp).horizontalScroll(rememberScrollState())) {
                     WorkOrderFilter.entries.forEach { filter ->
                         val selected = filter == state.filter
                         Box(
@@ -127,7 +128,14 @@ fun WorkOrdersListScreen(
                 }
                 else -> LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(state.items, key = { it.id }) { wo ->
-                        WorkOrderRow(wo, onClick = { viewModel.select(wo) })
+                        WorkOrderRow(wo, onClick = { onOpenWorkOrder(wo.id) })
+                    }
+                    item {
+                        Text("${state.items.size.arabic()} من ${state.total.arabic()} طلب", style = MaterialTheme.typography.bodySmall, color = TextTertiary)
+                        state.moreError?.let { Text(it, color = UrgentRed) }
+                        if (state.nextOffset < state.total) TextButton(enabled = !state.loadingMore, onClick = viewModel::loadMore) {
+                            Text(if (state.loadingMore) "جارِ التحميل…" else "عرض المزيد من الطلبات")
+                        }
                     }
                 }
             }
@@ -154,91 +162,5 @@ private fun WorkOrderRow(wo: WorkOrderSummaryDto, onClick: () -> Unit) {
                 StatusChip(text = wo.statusLabel, background = OrangeChipBg, contentColor = OrangeTextDark)
             }
         }
-    }
-}
-
-@Composable
-private fun WorkOrderDetailDialog(
-    wo: WorkOrderSummaryDto,
-    actionInProgress: Boolean,
-    actionError: String?,
-    onDismiss: () -> Unit,
-    onApprove: () -> Unit,
-    onReject: (String?) -> Unit,
-) {
-    var showRejectReason by remember { mutableStateOf(false) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(wo.code) },
-        text = {
-            Column {
-                DetailLine("الحالة", wo.statusLabel)
-                DetailLine("الجهاز", wo.deviceType)
-                DetailLine("العميل", wo.customerName)
-                DetailLine("العطل", wo.issueDescription)
-                DetailLine("الفرع", wo.branch ?: "—")
-                DetailLine("الفني", wo.technicianName ?: "بلا فني")
-                DetailLine("مصدر الطلب", if (wo.source == "online") "الموقع الإلكتروني" else "استقبال")
-                DetailLine("تاريخ الإنشاء", runCatching { Instant.parse(wo.createdAt).dateLabelCairo() }.getOrDefault(wo.createdAt))
-                wo.closedAt?.let { DetailLine("تاريخ الإغلاق", runCatching { Instant.parse(it).dateLabelCairo() }.getOrDefault(it)) }
-
-                if (wo.status == "awaiting_approval") {
-                    Text(
-                        text = "بعد اتصالك بالعميل وتأكيد قراره بخصوص عرض السعر:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextTertiary,
-                        modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
-                    )
-                    if (actionInProgress) {
-                        Box(modifier = Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = BrandNavy)
-                        }
-                    } else {
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            TextButton(onClick = onApprove) { Text("العميل وافق", color = BrandNavy) }
-                            TextButton(onClick = { showRejectReason = true }) { Text("العميل رفض", color = UrgentRed) }
-                        }
-                    }
-                    actionError?.let {
-                        Text(text = it, color = UrgentRed, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 6.dp))
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("إغلاق", color = BrandNavy) }
-        },
-    )
-
-    if (showRejectReason) {
-        var reason by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showRejectReason = false },
-            title = { Text("سبب الرفض (اختياري)") },
-            text = {
-                OutlinedTextField(
-                    value = reason,
-                    onValueChange = { reason = it },
-                    placeholder = { Text("مثال: السعر مرتفع") },
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { showRejectReason = false; onReject(reason.ifBlank { null }) }) {
-                    Text("تأكيد الرفض", color = UrgentRed)
-                }
-            },
-            dismissButton = { TextButton(onClick = { showRejectReason = false }) { Text("تراجع", color = TextTertiary) } },
-        )
-    }
-}
-
-@Composable
-private fun DetailLine(label: String, value: String) {
-    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Text(text = label, style = MaterialTheme.typography.bodySmall, color = TextTertiary)
-        Text(text = value, style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
     }
 }

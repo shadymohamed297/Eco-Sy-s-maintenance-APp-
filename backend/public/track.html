@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>تتبع طلب الصيانة — الهندسة المتحدة</title>
-<link rel="icon" href="/favicon.png" type="image/png" />
+<title>تتبع طلب الصيانة — الهندسية المتحدة</title>
+<link rel="icon" href="/logo.jpg" type="image/jpeg" />
 <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
@@ -12,9 +12,9 @@
 <header class="site-header">
   <div class="container">
     <div class="brand-row">
-      <img src="/logo.png" alt="الهندسة المتحدة" class="brand-logo" />
+      <img src="/logo.jpg" alt="الهندسية المتحدة" class="brand-logo" />
       <div>
-        <div class="brand">الهندسة المتحدة</div>
+        <div class="brand">الهندسية المتحدة</div>
         <div class="brand-sub">صيانة الأجهزة المنزلية وأجهزة الأسواق الحرة</div>
       </div>
     </div>
@@ -46,14 +46,14 @@
         <div class="row"><span class="label">الكود</span><span id="rCode"></span></div>
         <div class="row"><span class="label">الحالة</span><span id="rStatus"></span></div>
         <div class="row"><span class="label">الجهاز</span><span id="rDevice"></span></div>
-        <div class="row"><span class="label">فني معيّن</span><span id="rTech"></span></div>
+        <div class="row"><span class="label">الفني المسؤول</span><span id="rTech"></span></div>
         <div class="row"><span class="label">تاريخ الطلب</span><span id="rDate"></span></div>
       </div>
     </div>
   </div>
 </section>
 
-<footer>الهندسة المتحدة — نظام إدارة الصيانة</footer>
+<footer>الهندسية المتحدة — نظام إدارة الصيانة</footer>
 
 <script>
 const form = document.getElementById('trackForm');
@@ -94,7 +94,7 @@ form.addEventListener('submit', async (e) => {
     result.className = 'track-result show';
   } catch (err) {
     msg.className = 'form-msg show error';
-    msg.textContent = 'تعذّر الاتصال بالخادم، تحقق من الإنترنت وحاول مرة أخرى';
+    msg.textContent = 'مش قادرين نتصل دلوقتي. راجع الإنترنت وحاول تاني.';
   } finally {
     btn.disabled = false;
     btn.textContent = 'تتبّع';

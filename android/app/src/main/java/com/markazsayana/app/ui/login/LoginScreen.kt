@@ -9,14 +9,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.foundation.Image
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -28,14 +32,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.markazsayana.app.R
 import com.markazsayana.app.data.remote.UserDto
+import com.markazsayana.app.data.local.normalizeServerBaseUrl
+import com.markazsayana.app.ui.components.BrandLogo
+import com.markazsayana.app.ui.components.CENTER_NAME
+import com.markazsayana.app.ui.components.CENTER_LOCATION
 import com.markazsayana.app.ui.components.PrimaryButton
 import com.markazsayana.app.ui.theme.CardWhite
 import com.markazsayana.app.ui.theme.BrandNavy
@@ -64,10 +71,7 @@ fun LoginScreen(
         ServerUrlDialog(
             currentUrl = serverUrl,
             onDismiss = { showServerDialog = false },
-            onSave = { url ->
-                viewModel.setServerUrl(url)
-                showServerDialog = false
-            },
+            onSave = viewModel::setServerUrl,
         )
     }
 
@@ -75,28 +79,28 @@ fun LoginScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(SurfacePage)
+            .safeDrawingPadding()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Image(
-                painter = painterResource(R.drawable.logo_mark),
-                contentDescription = null,
-                modifier = Modifier.height(72.dp),
-            )
+            BrandLogo(modifier = Modifier.height(136.dp).fillMaxWidth().padding(top = 16.dp))
             Text(
-                text = "الهندسة المتحدة",
+                text = CENTER_NAME,
                 style = MaterialTheme.typography.titleLarge,
                 color = BrandNavy,
                 modifier = Modifier.padding(top = 8.dp),
             )
-            Text(text = "صيانة الأجهزة المنزلية وأجهزة الأسواق الحرة", style = MaterialTheme.typography.bodyMedium, color = TextTertiary)
+            Text(text = "مركز صيانة الأجهزة المنزلية · $CENTER_LOCATION", style = MaterialTheme.typography.bodyMedium, color = TextTertiary)
         }
 
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(top = 24.dp)
                 .background(CardWhite, RoundedCornerShape(16.dp))
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -108,7 +112,8 @@ fun LoginScreen(
                 onValueChange = { identifier = it },
                 label = { Text("البريد الإلكتروني أو رقم الهاتف") },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                enabled = state !is LoginUiState.Loading,
                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy),
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -118,7 +123,9 @@ fun LoginScreen(
                 label = { Text("كلمة المرور") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { viewModel.login(identifier, password) }),
+                enabled = state !is LoginUiState.Loading,
                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy),
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -138,52 +145,68 @@ fun LoginScreen(
                     CircularProgressIndicator(color = BrandNavy)
                 }
             } else {
-                PrimaryButton(text = "دخول", onClick = { viewModel.login(identifier, password) })
+                PrimaryButton(text = "دخول", onClick = { viewModel.login(identifier, password) }, enabled = identifier.isNotBlank() && password.isNotBlank())
             }
         }
 
         Text(
-            text = "عنوان السيرفر: ${serverUrl.ifBlank { "…" }}",
+            text = "إعداد الاتصال بالنظام",
             style = MaterialTheme.typography.labelMedium,
             color = TextTertiary,
             textAlign = TextAlign.Center,
             modifier = Modifier
-                .padding(top = 18.dp)
+                .padding(top = 18.dp, bottom = 24.dp)
                 .fillMaxWidth()
-                .clickable { showServerDialog = true },
+                .clickable(enabled = state !is LoginUiState.Loading) { showServerDialog = true },
         )
     }
 }
 
 @Composable
-private fun ServerUrlDialog(currentUrl: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+private fun ServerUrlDialog(currentUrl: String, onDismiss: () -> Unit, onSave: (String, (String?) -> Unit) -> Unit) {
     var text by remember(currentUrl) { mutableStateOf(currentUrl) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
     AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("عنوان سيرفر النظام") },
+        onDismissRequest = { if (!saving) onDismiss() },
+        title = { Text("الاتصال بالنظام") },
         text = {
             Column {
                 Text(
-                    text = "الصق هنا رابط الباك إند بعد نشره (مثلاً من Render)، مرة واحدة بس.",
+                    text = "يحدد مسؤول المركز رابط النظام عند التجهيز. تغيير الرابط يتطلب تسجيل الدخول من جديد.",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextTertiary,
                     modifier = Modifier.padding(bottom = 10.dp),
                 )
                 OutlinedTextField(
                     value = text,
-                    onValueChange = { text = it },
+                    onValueChange = { text = it; error = null },
                     singleLine = true,
-                    placeholder = { Text("https://markaz-sayana-api.onrender.com") },
+                    label = { Text("رابط النظام") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    enabled = !saving,
+                    isError = error != null,
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                error?.let { Text(it, color = UrgentRed, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp)) }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(text) }) { Text("حفظ", color = BrandNavy) }
+            TextButton(enabled = !saving, onClick = {
+                val normalized = runCatching { normalizeServerBaseUrl(text) }.getOrElse {
+                    error = it.message
+                    return@TextButton
+                }
+                saving = true
+                onSave(normalized) { message ->
+                    saving = false
+                    if (message == null) onDismiss() else error = message
+                }
+            }) { Text(if (saving) "جارٍ الحفظ…" else "حفظ", color = BrandNavy) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("إلغاء", color = TextTertiary) }
+            TextButton(enabled = !saving, onClick = onDismiss) { Text("إلغاء", color = TextTertiary) }
         },
     )
 }

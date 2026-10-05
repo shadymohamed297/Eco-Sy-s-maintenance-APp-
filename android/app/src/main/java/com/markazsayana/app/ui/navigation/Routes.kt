@@ -20,11 +20,17 @@ object Routes {
     const val INVENTORY = "inventory"
 
     const val WORK_ORDERS_LIST = "work-orders"
+    const val WORK_ORDER_DETAIL = "work-orders/{workOrderId}/detail"
+    fun workOrderDetail(workOrderId: Int) = "work-orders/$workOrderId/detail"
+    const val WORK_ORDER_INVOICE = "work-orders/{workOrderId}/invoice"
+    fun workOrderInvoice(workOrderId: Int) = "work-orders/$workOrderId/invoice"
     const val PENDING_APPROVALS = "work-orders/awaiting-approval"
     const val CUSTOMERS_LIST = "customers"
     const val CUSTOMER_DETAIL = "customers/{customerId}"
     fun customerDetail(customerId: Int) = "customers/$customerId"
     const val TECHNICIANS_ROSTER = "manager/technicians"
+    const val TECHNICIAN_DETAIL = "manager/technicians/{technicianId}"
+    fun technicianDetail(technicianId: Int) = "manager/technicians/$technicianId"
     const val REPORTS = "manager/reports"
     const val MY_PERFORMANCE = "technician/performance"
 

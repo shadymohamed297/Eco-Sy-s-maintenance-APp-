@@ -2,16 +2,10 @@ const express = require('express');
 const { pool } = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
+const { revenueExpr, roundMoney } = require('../domain');
 const router = express.Router();
 
 const INTERVALS = { month: '30 days', quarter: '90 days', year: '365 days' };
-
-function revenueExpr(alias = 'wo') {
-  return `(
-    i.labor_fee - i.warranty_discount
-    + COALESCE((SELECT sum(p.price) FROM parts_used p WHERE p.work_order_id = ${alias}.id AND p.status = 'used'), 0)
-  ) * (1 + i.tax_rate)`;
-}
 
 router.get('/', requireAuth, requireRole('manager'), async (req, res) => {
   const period = INTERVALS[req.query.period] ? req.query.period : 'month';
@@ -23,7 +17,7 @@ router.get('/', requireAuth, requireRole('manager'), async (req, res) => {
             avg(extract(epoch FROM (wo.closed_at - wo.created_at)) / 86400.0) AS avg_repair_days
      FROM work_orders wo
      JOIN invoices i ON i.work_order_id = wo.id
-     WHERE wo.closed_at >= now() - $1::interval`,
+     WHERE wo.status = 'closed' AND wo.closed_at >= now() - $1::interval`,
     [interval]
   );
 
@@ -34,7 +28,7 @@ router.get('/', requireAuth, requireRole('manager'), async (req, res) => {
      FROM work_orders wo
      JOIN invoices i ON i.work_order_id = wo.id
      JOIN users t ON t.id = wo.technician_id
-     WHERE wo.closed_at >= now() - $1::interval
+     WHERE wo.status = 'closed' AND wo.closed_at >= now() - $1::interval
      GROUP BY t.id, t.name
      ORDER BY revenue DESC`,
     [interval]
@@ -45,7 +39,7 @@ router.get('/', requireAuth, requireRole('manager'), async (req, res) => {
             coalesce(sum(${revenueExpr()}), 0) AS revenue
      FROM work_orders wo
      JOIN invoices i ON i.work_order_id = wo.id
-     WHERE wo.closed_at >= now() - $1::interval
+     WHERE wo.status = 'closed' AND wo.closed_at >= now() - $1::interval
      GROUP BY wo.branch
      ORDER BY revenue DESC`,
     [interval]
@@ -57,7 +51,7 @@ router.get('/', requireAuth, requireRole('manager'), async (req, res) => {
      FROM work_orders wo
      JOIN invoices i ON i.work_order_id = wo.id
      JOIN devices d ON d.id = wo.device_id
-     WHERE wo.closed_at >= now() - $1::interval
+     WHERE wo.status = 'closed' AND wo.closed_at >= now() - $1::interval
      GROUP BY d.device_type
      ORDER BY revenue DESC`,
     [interval]
@@ -68,32 +62,33 @@ router.get('/', requireAuth, requireRole('manager'), async (req, res) => {
     period,
     totals: {
       completedCount: Number(t.completed_count),
-      totalRevenue: Math.round(Number(t.total_revenue)),
+      totalRevenue: roundMoney(Number(t.total_revenue)),
       avgRepairDays: t.avg_repair_days ? Math.round(Number(t.avg_repair_days) * 10) / 10 : null,
     },
     byTechnician: byTechnician.rows.map((r) => ({
       id: r.id,
       name: r.name,
       completedCount: Number(r.completed_count),
-      revenue: Math.round(Number(r.revenue)),
+      revenue: roundMoney(Number(r.revenue)),
       avgRating: r.avg_rating ? Math.round(Number(r.avg_rating) * 10) / 10 : null,
     })),
     byBranch: byBranch.rows.map((r) => ({
       branch: r.branch,
       completedCount: Number(r.completed_count),
-      revenue: Math.round(Number(r.revenue)),
+      revenue: roundMoney(Number(r.revenue)),
     })),
     byDeviceType: byDeviceType.rows.map((r) => ({
       deviceType: r.device_type,
       completedCount: Number(r.completed_count),
-      revenue: Math.round(Number(r.revenue)),
+      revenue: roundMoney(Number(r.revenue)),
     })),
   });
 });
 
 function csvEscape(value) {
-  const s = value === null || value === undefined ? '' : String(value);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  const raw = value === null || value === undefined ? '' : String(value);
+  const s = /^[=+@\-\t\r]/.test(raw) ? `'${raw}` : raw;
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 router.get('/export', requireAuth, requireRole('manager'), async (req, res) => {
@@ -104,14 +99,14 @@ router.get('/export', requireAuth, requireRole('manager'), async (req, res) => {
     `SELECT wo.code, c.name AS customer_name, c.phone AS customer_phone, d.device_type,
             t.name AS technician_name, wo.branch, wo.created_at, wo.closed_at,
             i.labor_fee, i.warranty_discount, i.payment_method, i.customer_rating,
-            COALESCE((SELECT sum(p.price) FROM parts_used p WHERE p.work_order_id = wo.id AND p.status = 'used'), 0) AS parts_total,
+            COALESCE(i.parts_total, (SELECT sum(p.price) FROM parts_used p WHERE p.work_order_id = wo.id AND p.status = 'used'), 0) AS parts_total,
             ${revenueExpr()} AS total
      FROM work_orders wo
      JOIN invoices i ON i.work_order_id = wo.id
      JOIN customers c ON c.id = wo.customer_id
      JOIN devices d ON d.id = wo.device_id
      LEFT JOIN users t ON t.id = wo.technician_id
-     WHERE wo.closed_at >= now() - $1::interval
+     WHERE wo.status = 'closed' AND wo.closed_at >= now() - $1::interval
      ORDER BY wo.closed_at DESC`,
     [interval]
   );

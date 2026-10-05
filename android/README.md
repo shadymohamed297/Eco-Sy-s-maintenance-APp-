@@ -1,68 +1,43 @@
-# United Engineering — Android App
+# تطبيق الهندسية المتحدة
 
-Native Android client (Kotlin + Jetpack Compose + Material 3), Arabic RTL, talking to the
-backend in `../backend`.
+تطبيق أندرويد عربي لمركز **الهندسية المتحدة** في **الحدايق**، متصل بالخادم الموجود في `../backend`. يعمل بالبيانات الفعلية للمركز وبصلاحيات منفصلة للاستقبال والفني والمدير.
 
-## Stack
+## الأدوات المستخدمة
 
-- Kotlin, Jetpack Compose, Material 3
-- Hilt (DI), Navigation Compose
-- Retrofit + OkHttp + kotlinx.serialization
-- DataStore Preferences (JWT storage)
-- IBM Plex Sans Arabic (bundled under `app/src/main/res/font`, SIL OFL licensed — see
-  `app/src/main/assets/licenses/IBMPlexSansArabic-OFL.txt`)
+Kotlin، Jetpack Compose، Material 3، Hilt، Navigation Compose، Retrofit، OkHttp، kotlinx.serialization وDataStore. خط IBM Plex Sans Arabic مضمّن بترخيص SIL OFL في `app/src/main/assets/licenses/IBMPlexSansArabic-OFL.txt`.
 
-## Running it
+## التشغيل
 
-1. Run the backend first (see `../backend/README.md`), or deploy it for free per `../DEPLOY.md`.
-2. Open `android/` in Android Studio (Koala+) and let it sync.
-3. `BuildConfig.BASE_URL` is only the initial value. The real server address is stored on-device
-   via DataStore and can be changed any time from the "عنوان السيرفر" (server address) link
-   under the login card — tap it, paste a URL, save. No rebuild needed to point the app at a
-   different backend.
-4. Run the `app` configuration. Log in with any seeded account (see backend README), password
-   `Passw0rd!`.
+1. جهّز الخادم وقاعدة البيانات وفق `../backend/README.md`.
+2. أنشئ حساب المدير الأول، ثم أضف حسابات الموظفين من التطبيق. لا توجد كلمة مرور تجريبية مشتركة للاستخدام اليومي.
+3. افتح مجلد `android/` في Android Studio، ثم شغّل إعداد `app`.
+4. من شاشة الدخول، اختر **إعداد الاتصال بالنظام** لضبط الرابط الذي جهّزه مسؤول المركز. يحتفظ الجهاز بالرابط، ويدعم وجود النظام تحت مسار مثل `/maintenance/`. استخدم رابط الخادم الأساسي؛ مسارات `api/` تضاف بواسطة التطبيق.
+5. تغيير رابط النظام يمسح جلسة الدخول الحالية، حتى لا تنتقل بيانات اعتماد المركز إلى خادم آخر.
 
-## CI build (no local setup needed)
+يمكن ضبط `BuildConfig.BASE_URL` عند البناء ليكون الرابط الافتراضي للتثبيت الجديد. ينبغي إعداد رابط الخادم الفعلي قبل توزيع التطبيق على الموظفين.
 
-`.github/workflows/android-build.yml` builds the debug APK and runs lint on every push/PR that
-touches `android/`, and can also be triggered manually from the Actions tab ("Run workflow").
-The finished APK is attached as a downloadable workflow artifact
-(`markaz-sayana-debug-apk`) — install it straight on a device or emulator without needing
-Android Studio at all.
+## الواجهات
 
-## Screens
+| المستخدم | المهام |
+| --- | --- |
+| الاستقبال | تسجيل العميل والجهاز، اختيار جهاز مسجل لعميل سابق، إنشاء الطلب، تعيين الفني والموعد، متابعة المواعيد والموافقات |
+| الفني | طلباته، مراحل العمل، الفحص وقطع الغيار والصور، الفاتورة وتوقيع العميل، متابعة أدائه |
+| المدير | العملاء والطلبات وسجل الإجراءات، الفنيون وجدول عملهم، الفواتير والتقارير، المخزون وحسابات الفريق |
 
-| # | Screen | Role |
-|---|--------|------|
-| 1 | Reception dashboard | Reception |
-| 2 | New request intake (customer + device) | Reception |
-| 3 | Assign technician & schedule | Reception |
-| 4 | Technician's daily tasks | Technician |
-| 5 | Work order execution (checklist, parts) | Technician |
-| 6 | Invoice + customer signature/close-out | Technician |
-| 7 | Manager performance dashboard | Manager |
-| 8 | Inventory / spare parts | Manager (+ shared) |
-| Work Orders (الطلبات) | All work orders — search + status filter | Reception |
-| Customers (العملاء) | Search → a customer's devices + full order history | Reception |
-| Technicians (الفنيون) | Every technician with today's load, monthly completions, rating | Manager |
-| Reports (التقارير) | Totals + breakdown by technician/branch/device, CSV export | Manager |
-| My Performance (أدائي) | Personal stats + recent closed jobs | Technician |
-| Employees (إدارة الموظفين) | Add/edit/deactivate employee accounts | Manager |
+كل الحسابات تخص مركزًا واحدًا في الحدايق. لا توجد قوائم لاختيار فروع أخرى أو أرقام ومسافات مضافة للعرض.
 
-## Known gaps / deliberate simplifications
+## الهوية والخصوصية
 
-- Before/after photos use the device camera and are uploaded as base64, same as the signature —
-  no cloud storage/CDN, matching the scale of this app.
-- Inventory reorder emails and automated WhatsApp delivery are not implemented — those are
-  external integrations out of scope for this version.
+يستخدم التطبيق الاسم الرسمي **الهندسية المتحدة** والشعار الأصلي المقدم من صاحب المركز في `app/src/main/res/drawable-nodpi/brand_logo_original.jpg`. الصورة محفوظة دون تعديل، والخلفية السوداء مقصودة. ألوان الواجهات كحلي وبرتقالي.
 
-## Signing: debug build, on purpose
+تسجيل محتوى طلبات الشبكة متوقف في جميع نسخ التطبيق، بما فيها نسخ debug، لحماية كلمات المرور وبيانات العملاء والصور والتوقيعات.
 
-This app is for the maintenance center's own staff, installed directly on their phones — it's
-never going to Google Play. A debug build is already signed (with Android's auto-generated debug
-key) and installs and runs identically to a release build for that use case; the only real
-difference is a somewhat larger APK and no R8 shrinking. If this ever needs proper release
-signing (e.g. to publish in-place updates through some other channel), generate a keystore with
-`keytool`, wire it into a `release` `signingConfig` in `app/build.gradle.kts`, and store the
-keystore + passwords as GitHub Actions secrets rather than committing them.
+## البناء والفحص
+
+```sh
+./gradlew assembleDebug lintDebug testDebugUnitTest
+```
+
+يشغّل `.github/workflows/android-build.yml` البناء والفحص عند تعديل التطبيق، وينشر ملف APK ضمن ملفات نتيجة التشغيل. نسخة debug مناسبة للاختبار الداخلي؛ توزيع التحديثات الدائمة يحتاج مفتاح توقيع محفوظًا وآمنًا، ولا يوضع المفتاح أو كلمات مروره في المستودع.
+
+إشعارات WhatsApp والرسائل التلقائية وتتبع GPS المباشر تحتاج خدمات وتكاملات خارجية. لا يعرض التطبيق نجاح إرسال إشعار لم يتم إرساله.

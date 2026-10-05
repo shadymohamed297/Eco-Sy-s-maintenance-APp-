@@ -16,10 +16,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -42,7 +42,6 @@ import com.markazsayana.app.ui.components.FullScreenLoading
 import com.markazsayana.app.ui.components.OutlinedCard
 import com.markazsayana.app.ui.components.PrimaryButton
 import com.markazsayana.app.ui.components.SecondaryButton
-import com.markazsayana.app.ui.theme.AccentOrange
 import com.markazsayana.app.ui.theme.BorderLight
 import com.markazsayana.app.ui.theme.BorderMedium
 import com.markazsayana.app.ui.theme.CardWhite
@@ -99,10 +98,11 @@ private fun TopBarWithProgress(title: String, subtitle: String, progress: Float,
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(SurfaceScreen),
+                    .background(SurfaceScreen)
+                    .clickable(onClick = onBack),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(text = "→", style = MaterialTheme.typography.titleMedium, color = TextPrimary, modifier = Modifier.clickableNoIndication(onBack))
+                Text(text = "→", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
             }
             Column {
                 Text(text = title, style = MaterialTheme.typography.titleMedium, color = TextPrimary)
@@ -120,13 +120,13 @@ private fun Modifier.clickableNoIndication(onClick: () -> Unit): Modifier =
 
 @Composable
 private fun CustomerStep(state: NewRequestUiState, viewModel: NewRequestViewModel, modifier: Modifier = Modifier) {
-    Column(modifier = modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(text = "رقم هاتف العميل", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
                 value = state.phone,
                 onValueChange = viewModel::onPhoneChange,
-                placeholder = { Text("+20 1‑‑ ‑‑‑ ‑‑‑‑") },
+                label = { Text("رقم الهاتف") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy),
@@ -149,11 +149,18 @@ private fun CustomerStep(state: NewRequestUiState, viewModel: NewRequestViewMode
                     }
                 }
             }
+            OutlinedTextField(
+                value = state.newCustomerAddress,
+                onValueChange = viewModel::onNewCustomerAddressChange,
+                label = { Text("عنوان الزيارة") },
+                supportingText = { Text("يمكن تحديد عنوان مختلف لهذا الطلب") },
+                modifier = Modifier.fillMaxWidth(),
+            )
             PrimaryButton(text = "متابعة إلى بيانات الجهاز", onClick = viewModel::proceedToDeviceStep)
         }
 
         if (state.customerNotFound) {
-            Text(text = "لا يوجد عميل بهذا الرقم — أضف بيانات عميل جديد", style = MaterialTheme.typography.bodySmall, color = TextTertiary)
+            Text(text = "هذا الرقم غير مسجل. أضف اسم العميل وعنوانه", style = MaterialTheme.typography.bodySmall, color = TextTertiary)
             OutlinedTextField(
                 value = state.newCustomerName,
                 onValueChange = viewModel::onNewCustomerNameChange,
@@ -165,7 +172,7 @@ private fun CustomerStep(state: NewRequestUiState, viewModel: NewRequestViewMode
             OutlinedTextField(
                 value = state.newCustomerAddress,
                 onValueChange = viewModel::onNewCustomerAddressChange,
-                label = { Text("العنوان") },
+                label = { Text("عنوان الزيارة") },
                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy),
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -190,6 +197,25 @@ private fun DeviceStep(state: NewRequestUiState, viewModel: NewRequestViewModel,
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        val registeredDevices = state.foundCustomer?.devices.orEmpty()
+        if (registeredDevices.isNotEmpty()) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("أجهزة العميل المسجلة", style = MaterialTheme.typography.titleSmall, color = TextPrimary)
+                    registeredDevices.forEach { device ->
+                        OutlinedCard(
+                            borderColor = if (state.selectedDeviceId == device.id) BrandNavy else BorderLight,
+                            modifier = Modifier.clickable(enabled = !state.submitting) { viewModel.chooseDevice(device) },
+                        ) {
+                            Text(listOfNotNull(device.deviceType, device.brand, device.model).joinToString(" · "), color = TextPrimary)
+                            device.serialNumber?.let { Text("رقم تسلسلي: $it", style = MaterialTheme.typography.bodySmall, color = TextTertiary) }
+                            if (state.selectedDeviceId == device.id) Text("الجهاز المحدد لهذا الطلب", style = MaterialTheme.typography.labelMedium, color = BrandNavy)
+                        }
+                    }
+                    SecondaryButton(text = "إضافة جهاز آخر", onClick = { viewModel.chooseDevice(null) })
+                }
+            }
+        }
         item {
             val displayName = state.foundCustomer?.name ?: state.newCustomerName
             val displayPhone = state.foundCustomer?.phone ?: state.phone
@@ -199,6 +225,7 @@ private fun DeviceStep(state: NewRequestUiState, viewModel: NewRequestViewModel,
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = displayName, style = MaterialTheme.typography.bodyLarge, color = TextPrimary)
                         Text(text = displayPhone, style = MaterialTheme.typography.bodySmall, color = TextTertiary)
+                        state.newCustomerAddress.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = TextTertiary) }
                     }
                     Text(text = "تعديل", style = MaterialTheme.typography.labelLarge, color = BrandNavy, modifier = Modifier.clickableNoIndication(viewModel::backToCustomerStep))
                 }
@@ -216,7 +243,7 @@ private fun DeviceStep(state: NewRequestUiState, viewModel: NewRequestViewModel,
                                 .clip(ControlShape)
                                 .background(if (selected) BrandNavy else CardWhite)
                                 .border(1.dp, if (selected) BrandNavy else BorderMedium, ControlShape)
-                                .clickableNoIndication { viewModel.onDeviceTypeChange(type) }
+                                .clickable(enabled = !state.submitting && state.selectedDeviceId == null) { viewModel.onDeviceTypeChange(type) }
                                 .padding(horizontal = 16.dp, vertical = 11.dp),
                         ) {
                             Text(text = type, color = if (selected) CardWhite else TextPrimary, style = MaterialTheme.typography.bodyMedium)
@@ -233,6 +260,7 @@ private fun DeviceStep(state: NewRequestUiState, viewModel: NewRequestViewModel,
                     onValueChange = viewModel::onBrandChange,
                     label = { Text("الماركة") },
                     singleLine = true,
+                    enabled = !state.submitting && state.selectedDeviceId == null,
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy),
                     modifier = Modifier.weight(1f),
                 )
@@ -241,6 +269,7 @@ private fun DeviceStep(state: NewRequestUiState, viewModel: NewRequestViewModel,
                     onValueChange = viewModel::onModelChange,
                     label = { Text("الموديل") },
                     singleLine = true,
+                    enabled = !state.submitting && state.selectedDeviceId == null,
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy),
                     modifier = Modifier.weight(1f),
                 )
@@ -253,6 +282,7 @@ private fun DeviceStep(state: NewRequestUiState, viewModel: NewRequestViewModel,
                 onValueChange = viewModel::onSerialChange,
                 label = { Text("الرقم التسلسلي") },
                 singleLine = true,
+                enabled = !state.submitting && state.selectedDeviceId == null,
                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy),
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -264,6 +294,7 @@ private fun DeviceStep(state: NewRequestUiState, viewModel: NewRequestViewModel,
                 onValueChange = viewModel::onIssueChange,
                 label = { Text("وصف العطل") },
                 minLines = 3,
+                enabled = !state.submitting,
                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy),
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -276,6 +307,7 @@ private fun DeviceStep(state: NewRequestUiState, viewModel: NewRequestViewModel,
                     Switch(
                         checked = state.underWarranty,
                         onCheckedChange = viewModel::onWarrantyToggle,
+                        enabled = !state.submitting && state.selectedDeviceId == null,
                         colors = SwitchDefaults.colors(checkedTrackColor = BrandNavy),
                     )
                 }
@@ -287,15 +319,12 @@ private fun DeviceStep(state: NewRequestUiState, viewModel: NewRequestViewModel,
         }
 
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                SecondaryButton(text = "حفظ كمسودة", onClick = {}, modifier = Modifier.weight(1f))
-                PrimaryButton(
-                    text = if (state.submitting) "جارِ الحفظ…" else "التالي · الجدولة",
+            PrimaryButton(
+                    text = if (state.submitting) "جارٍ حفظ الطلب…" else "حفظ الطلب واختيار الفني",
                     onClick = viewModel::submit,
                     enabled = !state.submitting,
-                    modifier = Modifier.weight(1.4f),
+                    modifier = Modifier.fillMaxWidth(),
                 )
-            }
         }
     }
 }

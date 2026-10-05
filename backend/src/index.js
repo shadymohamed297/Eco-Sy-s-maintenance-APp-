@@ -37,24 +37,6 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/api/public', publicRouter);
 
-// One-time bootstrap route for hosts (like Render's free tier) that don't offer a
-// shell to run `npm run seed` manually. Guarded by a random token set only as a Render
-// env var (never committed) and compared with a timing-safe check since this action
-// wipes and reseeds all data — remove the SEED_TOKEN env var (or redeploy without this
-// route) once you've used it.
-if (process.env.SEED_TOKEN) {
-  app.get('/api/admin/seed', async (req, res) => {
-    const provided = Buffer.from(String(req.query.token || ''));
-    const expected = Buffer.from(process.env.SEED_TOKEN);
-    const ok = provided.length === expected.length && require('crypto').timingSafeEqual(provided, expected);
-    if (!ok) return res.status(403).json({ error: 'Forbidden' });
-
-    const { seed } = require('../db/seed');
-    await seed();
-    return res.json({ ok: true, message: 'Seed complete. Remove SEED_TOKEN from your env vars now.' });
-  });
-}
-
 app.use('/api/auth', authRouter);
 app.use('/api/work-orders', workOrdersRouter);
 app.use('/api/technicians', techniciansRouter);
@@ -65,8 +47,8 @@ app.use('/api/reports', reportsRouter);
 app.use('/api/employees', employeesRouter);
 
 app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ error: 'Internal server error' });
+  if (!err.status || err.status >= 500) console.error({ message: err.message, code: err.code });
+  res.status(err.status || 500).json({ error: err.status ? err.message : 'حصلت مشكلة أثناء حفظ البيانات. حاول مرة ثانية.' });
 });
 
 const port = process.env.PORT || 3000;

@@ -1,6 +1,7 @@
 package com.markazsayana.app.ui.technician
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,11 +15,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.markazsayana.app.data.remote.PerformanceWorkOrderDto
 import com.markazsayana.app.data.remote.TechnicianPerformanceResponse
 import com.markazsayana.app.ui.components.BottomNavBar
@@ -38,15 +43,24 @@ import com.markazsayana.app.ui.theme.TextTertiary
 import com.markazsayana.app.ui.theme.UrgentRed
 import com.markazsayana.app.util.arabic
 import com.markazsayana.app.util.arabicDecimal
+import com.markazsayana.app.util.dateLabelCairo
+import java.time.Instant
 
 private val nav = navItemsForRole("technician")
 
 @Composable
 fun MyPerformanceScreen(
     onNavTab: (String) -> Unit,
+    onOpenWorkOrder: (Int) -> Unit = {},
     viewModel: MyPerformanceViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) viewModel.load() }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Scaffold(
         containerColor = SurfaceScreen,
@@ -55,39 +69,45 @@ fun MyPerformanceScreen(
         when (val s = state) {
             is MyPerformanceUiState.Loading -> FullScreenLoading(Modifier.padding(padding))
             is MyPerformanceUiState.Error -> FullScreenError(s.message, onRetry = viewModel::load, modifier = Modifier.padding(padding))
-            is MyPerformanceUiState.Success -> Content(s.data, Modifier.padding(padding))
+            is MyPerformanceUiState.Success -> Content(s.data, onOpenWorkOrder, Modifier.padding(padding))
         }
     }
 }
 
 @Composable
-private fun Content(data: TechnicianPerformanceResponse, modifier: Modifier) {
+private fun Content(data: TechnicianPerformanceResponse, onOpenWorkOrder: (Int) -> Unit, modifier: Modifier) {
     Column(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxWidth().background(SurfaceDark).padding(16.dp)) {
-            Text(text = "أدائي", style = MaterialTheme.typography.titleLarge, color = CardWhite)
-            Text(text = "آخر ٩٠ يوم", style = MaterialTheme.typography.bodySmall, color = TextOnDarkMuted)
+            Text(text = "شغلي وتقارير الأداء", style = MaterialTheme.typography.titleLarge, color = CardWhite)
+            Text(text = "الطلبات التي تم تسليمها خلال آخر ٩٠ يوم", style = MaterialTheme.typography.bodySmall, color = TextOnDarkMuted)
         }
 
         LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                    StatTile("مكتملة هذا الشهر", data.completedThisMonth.arabic(), TextPrimary, Modifier.weight(1f))
-                    StatTile("رضا العملاء", data.avgRating?.let { "${it.arabicDecimal(1)} / ٥" } ?: "—", SuccessGreen, Modifier.weight(1f))
+                    StatTile("تم تسليمها هذا الشهر", data.completedThisMonth.arabic(), TextPrimary, Modifier.weight(1f))
+                    StatTile("تقييمات العملاء", data.avgRating?.let { "${it.arabicDecimal(1)} / ٥" } ?: "—", SuccessGreen, Modifier.weight(1f))
                 }
             }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                    StatTile("متوسط وقت الإصلاح", data.avgRepairDays?.let { "${it.arabicDecimal(1)} يوم" } ?: "—", TextPrimary, Modifier.weight(1f))
+                    StatTile("متوسط مدة الطلب", data.avgRepairDays?.let { "${it.arabicDecimal(1)} يوم" } ?: "—", TextPrimary, Modifier.weight(1f))
                     StatTile(
-                        "إعادة فتح", "${data.reopenRatePct.arabicDecimal(1)}٪",
+                        "طلبات متابعة الإصلاح", "${data.reopenRatePct.arabicDecimal(1)}٪",
                         if (data.reopenRatePct > 5) UrgentRed else TextPrimary, Modifier.weight(1f),
                     )
                 }
             }
             item {
-                Text(text = "آخر الأعمال المكتملة", style = MaterialTheme.typography.titleSmall, color = TextPrimary)
+                StatTile("إجمالي الطلبات خلال ٩٠ يوم", data.completedLast90Days.arabic(), TextPrimary, Modifier.fillMaxWidth())
             }
-            items(data.recentWorkOrders, key = { it.id }) { wo -> RecentRow(wo) }
+            item {
+                Text(text = "آخر الطلبات التي تم تسليمها", style = MaterialTheme.typography.titleSmall, color = TextPrimary)
+            }
+            if (data.recentWorkOrders.isEmpty()) item {
+                Text("لم تُسجل طلبات تم تسليمها بعد. سيظهر سجل شغلك هنا بعد أول تسليم.", color = TextTertiary, style = MaterialTheme.typography.bodySmall)
+            }
+            items(data.recentWorkOrders, key = { it.id }) { wo -> RecentRow(wo, { onOpenWorkOrder(wo.id) }) }
         }
     }
 }
@@ -101,12 +121,12 @@ private fun StatTile(label: String, value: String, valueColor: androidx.compose.
 }
 
 @Composable
-private fun RecentRow(wo: PerformanceWorkOrderDto) {
-    OutlinedCard {
+private fun RecentRow(wo: PerformanceWorkOrderDto, onOpen: () -> Unit) {
+    OutlinedCard(modifier = Modifier.clickable(onClick = onOpen)) {
         Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
             Column {
                 Text(text = "${wo.deviceType} — ${wo.customerName}", style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
-                Text(text = wo.code, style = MaterialTheme.typography.bodySmall, color = TextTertiary, modifier = Modifier.padding(top = 3.dp))
+                Text(text = listOfNotNull(wo.code, wo.closedAt?.let { runCatching { Instant.parse(it).dateLabelCairo() }.getOrNull() }).joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = TextTertiary, modifier = Modifier.padding(top = 3.dp))
             }
             if (wo.customerRating != null) {
                 Text(text = "★ ${wo.customerRating.arabic()}", style = MaterialTheme.typography.bodyMedium, color = SuccessGreen)

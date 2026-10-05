@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Display the supplied logo at its original aspect ratio; the source image is unchanged. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:width="108dp" android:height="77.11875dp" android:gravity="center">
+        <bitmap android:src="@drawable/brand_logo_original" android:gravity="fill" />
+    </item>
+</layer-list>

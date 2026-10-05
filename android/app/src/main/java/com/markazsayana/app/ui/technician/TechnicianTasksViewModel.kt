@@ -12,6 +12,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
 sealed interface TechnicianTasksUiState {
@@ -30,18 +32,23 @@ class TechnicianTasksViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<TechnicianTasksUiState>(TechnicianTasksUiState.Loading)
     val uiState: StateFlow<TechnicianTasksUiState> = _uiState
 
+    private var loadJob: Job? = null
+
     init {
         load()
     }
 
     fun load() {
+        loadJob?.cancel()
         _uiState.value = TechnicianTasksUiState.Loading
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             try {
                 val response = repository.myWorkOrders()
                 _uiState.value = TechnicianTasksUiState.Success(response.items, response.progress, sessionState.user.value)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                _uiState.value = TechnicianTasksUiState.Error("تعذّر تحميل مهام اليوم")
+                _uiState.value = TechnicianTasksUiState.Error(technicianRequestError(e, "تعذّر تحميل الزيارات. حاول مرة أخرى."))
             }
         }
     }
