@@ -116,7 +116,7 @@ nav.site-nav a:hover { opacity: 1; text-decoration: underline; }
   text-align: center;
 }
 
-.btn-primary { background: var(--orange); color: #fff; }
+.btn-primary { background: var(--orange); color: var(--petrol); }
 .btn-secondary { background: rgba(255, 255, 255, 0.14); color: #fff; }
 .btn-block { display: block; width: 100%; }
 .btn:disabled { opacity: 0.6; cursor: default; }

@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>الهندسية المتحدة — مرجع الهوية والسوشيال</title>
+  <style>
+    @font-face{font-family:Cairo;src:url('./assets/Cairo.ttf') format('truetype');font-weight:400 700;font-style:normal;font-display:swap}
+    :root{--navy:#000F50;--deep:#000A38;--orange:#F19301;--white:#fff;--surface:#F6F7FB;--muted:#4B5350;--rule:rgba(0,15,80,.13)}
+    *{box-sizing:border-box}html{background:var(--surface)}body{margin:0;font-family:Cairo,Tahoma,Arial,sans-serif;color:var(--navy);font-size:10.5pt;line-height:1.6}
+    .page{width:210mm;height:297mm;margin:12mm auto;padding:13mm 14mm 11mm;background:var(--white);display:flex;flex-direction:column;box-shadow:0 8px 30px rgba(0,10,56,.08);position:relative;break-after:page}
+    .page:before{content:'';position:absolute;top:0;right:0;left:0;height:2.5mm;background:var(--orange)}
+    .page:last-child{break-after:auto}.page-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--rule);padding-bottom:3mm;margin-bottom:6mm;gap:5mm;font-size:9pt;font-weight:600}
+    .page-header .label{color:var(--muted);font-size:8.5pt}.page-footer{margin-top:auto;padding-top:3mm;border-top:1px solid var(--rule);display:flex;justify-content:space-between;align-items:center;gap:4mm;color:var(--muted);font-size:8pt}
+    .content{min-height:0}h1,h2,h3,p{margin:0}h1{font-size:30pt;line-height:1.45;font-weight:700}h2{font-size:21pt;line-height:1.4;font-weight:700;margin-bottom:3mm}h3{font-size:12.5pt;font-weight:700;margin-bottom:2mm}p+p{margin-top:2mm}.lead{font-size:12pt;line-height:1.75;max-width:165mm;margin-bottom:5mm}.small{font-size:9pt;line-height:1.65}.tiny{font-size:8pt;line-height:1.65}.muted{color:var(--muted)}.eyebrow{font-size:9pt;font-weight:700;color:var(--muted);margin-bottom:3mm}.tag{display:inline-block;background:var(--orange);color:var(--navy);border-radius:2mm;padding:1mm 3mm;font-weight:700;font-size:9pt}.pill{display:inline-block;background:var(--surface);border:1px solid var(--rule);border-radius:20mm;padding:.6mm 2.4mm;font-size:8pt;font-weight:600}.card{padding:4mm;border-radius:3mm;background:var(--surface);border:1px solid var(--rule)}.card p{font-size:10pt}.notice{border-right:1mm solid var(--orange);padding:2.5mm 4mm;background:var(--surface);border-radius:2mm;font-size:9pt;line-height:1.7}.gap{height:4mm}.gap-lg{height:7mm}.two-col{display:grid;grid-template-columns:1fr 1fr;gap:4mm}.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm}.one-line{white-space:nowrap}.ltr{direction:ltr;unicode-bidi:isolate;display:inline-block;font-family:Cairo,Tahoma,Arial,sans-serif;font-variant-numeric:tabular-nums}code{font-family:monospace;font-size:9pt;direction:ltr;unicode-bidi:isolate;display:inline-block}ul{padding-right:4.5mm;margin:1.5mm 0}li{margin:1mm 0}table{width:100%;border-collapse:collapse;font-size:9pt}th{text-align:right;font-weight:700;background:var(--surface)}th,td{padding:2mm 2.5mm;border-bottom:1px solid var(--rule);vertical-align:top}a{color:var(--navy)}
+    .cover-title{font-size:34pt;margin-top:4mm}.cover-sub{font-size:19pt;font-weight:600;margin-top:1mm}.cover-hero{display:grid;grid-template-columns:1fr 1.04fr;gap:7mm;align-items:center;margin:8mm 0}.logo-frame{background:#000;padding:2mm;border-radius:4mm;display:flex;align-items:center;justify-content:center;width:100%;height:66mm}.logo-frame img{width:100%;height:100%;object-fit:contain}.cover-motto{font-size:19pt;font-weight:700;line-height:1.7}.number{font-size:21pt;font-weight:700;color:var(--orange);line-height:1.2}.principle{border-top:1px solid var(--rule);padding-top:3mm}.principle h3{font-size:10.5pt}.principle p{font-size:9pt;line-height:1.7}.cover-meta{display:flex;gap:2mm;flex-wrap:wrap;margin-top:5mm}
+    .palette{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm;margin-bottom:4mm}.swatch{border:1px solid var(--rule);border-radius:3mm;overflow:hidden}.swatch-color{height:16mm;display:flex;align-items:center;justify-content:center;font-weight:700}.swatch-label{padding:2mm 2.5mm;font-size:8.5pt;display:flex;justify-content:space-between;gap:1mm}.contrast{display:grid;grid-template-columns:1fr 1fr;gap:3mm}.contrast div{padding:2.5mm 3mm;border-radius:2mm;font-size:9pt}.type-sample{font-size:26pt;line-height:1.45;font-weight:700;margin:3mm 0}.type-spec{font-size:9pt;background:var(--surface);padding:2mm 3mm;border-radius:2mm}.type-rules{font-size:9pt;margin-top:3mm}
+    .template-area{display:grid;grid-template-columns:94mm 1fr;gap:6mm;align-items:start}.poster-guide{width:94mm;height:117.5mm;background:var(--navy);padding:5.57mm;color:white;border-radius:3mm;display:flex;flex-direction:column;position:relative}.poster-top{font-size:8.5pt;font-weight:700;border-bottom:1px solid rgba(255,255,255,.3);padding-bottom:2mm}.poster-guide-title{font-size:18pt;font-weight:700;line-height:1.4;margin-top:3mm}.poster-image-slot{height:36mm;border:1px dashed rgba(255,255,255,.6);border-radius:2mm;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;margin:3mm 0;background:rgba(255,255,255,.05);font-size:9pt}.poster-image-slot small{font-size:7.5pt}.poster-desc{font-size:8.5pt;line-height:1.6}.poster-footer{background:var(--deep);margin-top:auto;border-radius:2mm;padding:1mm 2mm;text-align:center;height:13.93mm;display:grid;grid-template-columns:.8fr 1.2fr;gap:2mm;align-items:center}.poster-cta{background:var(--orange);color:var(--navy);border-radius:1.4mm;font-size:9pt;font-weight:700;padding:.5mm 2mm;display:inline-block;margin-bottom:0}.poster-phone{font-size:10.2pt;line-height:1.45;font-weight:700;display:block;direction:ltr;font-variant-numeric:tabular-nums}.grid-lines{display:grid;grid-template-columns:repeat(6,1fr);gap:2.1mm;width:100%;height:7mm;margin-top:2mm}.grid-lines span{background:var(--surface);border-right:1px solid var(--rule);border-left:1px solid var(--rule);text-align:center;font-size:7.5pt}.metric-list{display:grid;gap:2.5mm}.metric-list .card{padding:3mm}.metric-list h3{font-size:10pt;margin-bottom:.5mm}.metric-list p{font-size:8.5pt}.component-row{display:flex;gap:3mm;align-items:center;margin-top:3mm}.component-icon{height:12mm;width:12mm;border:1.5px solid var(--navy);border-radius:3mm;display:flex;justify-content:center;align-items:center;font-weight:700;font-size:9pt}.component-label{font-size:9pt}.component-note{font-size:8.5pt;margin-top:3mm}
+    .audit-list{display:grid;gap:2.8mm}.audit-item{display:grid;grid-template-columns:9mm 1fr;gap:3mm;padding:2.8mm 3mm;background:var(--surface);border-radius:2mm}.audit-index{width:7mm;height:7mm;border-radius:50%;background:var(--navy);color:white;display:flex;justify-content:center;align-items:center;font-size:8.5pt;font-weight:700;margin-top:.4mm}.audit-item h3{font-size:10.5pt;margin-bottom:.7mm}.audit-item p{font-size:9pt;line-height:1.65}.copy-box{background:var(--navy);color:white;padding:4mm 5mm;border-radius:3mm}.copy-box .copy-title{font-size:18pt;font-weight:700;line-height:1.5;margin-bottom:1mm}.copy-box p{font-size:10pt}.copy-box .copy-cta{color:var(--orange);font-weight:700;margin-top:2mm}.copy-phones{display:flex;gap:5mm;flex-wrap:wrap;margin-top:1mm;font-size:11pt;font-weight:700}.feedback{border:1px solid var(--rule);padding:4mm;border-radius:3mm;font-size:9.3pt;line-height:1.8}.feedback p+p{margin-top:2mm}.checklist{font-size:9pt}.checklist li{margin:1.7mm 0}.export-strip{background:var(--navy);color:white;padding:3mm 4mm;border-radius:3mm;font-size:9pt;line-height:1.7}.export-strip strong{color:var(--orange)}
+    @media print{html,body{background:white}.page{margin:0;box-shadow:none}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}a{text-decoration:none}@page{size:A4;margin:0}}
+    @media screen and (max-width:850px){body{padding:0}.page{margin:0 0 20px;width:210mm;transform-origin:top right}}
+  </style>
+</head>
+<body>
+  <section class="page" aria-label="الصفحة الأولى: الهوية">
+    <header class="page-header"><span>الهندسية المتحدة</span><span class="label">مرجع الهوية والسوشيال · الإصدار 1.0</span></header>
+    <main class="content">
+      <span class="tag">تسليم عملي للمصممة</span>
+      <h1 class="cover-title">هوية واحدة.<br>خدمة واضحة.</h1>
+      <p class="cover-sub">الهندسية المتحدة</p>
+      <p class="muted">صيانة الأجهزة المنزلية · الحدايق</p>
+      <div class="cover-hero">
+        <div class="logo-frame"><img src="./assets/brand-logo-original.jpg" alt="الشعار الأصلي للهندسية المتحدة على خلفيته السوداء"></div>
+        <div><p class="cover-motto">كحلي وبرتقالي.<br>لغة بسيطة.<br>حجز يسهل قراءته.</p><p class="small muted" style="margin-top:3mm">مرجع لتوحيد البوستات القادمة، مع مراجعة محددة للتصميمين المرسلين.</p></div>
+      </div>
+      <div class="three-col">
+        <div class="principle"><div class="number">01</div><h3>خدمة واحدة</h3><p>عنوان واحد وصورة مرتبطة به. لا نضع جهازًا من كل نوع داخل إعلان خدمة واحدة.</p></div>
+        <div class="principle"><div class="number">02</div><h3>هوية ثابتة</h3><p>الشعار الأصلي، نفس الألوان والخط، ونفس ترتيب بيانات الحجز في السلسلة.</p></div>
+        <div class="principle"><div class="number">03</div><h3>وعد يمكن الوفاء به</h3><p>نؤكد نطاق الخدمة والضمان والمواعيد قبل إضافتها للإعلان.</p></div>
+      </div>
+      <div class="gap-lg"></div>
+      <div class="notice"><strong>ملف الشعار المتاح JPG بخلفية سوداء.</strong> نحافظ على نسبه وشكله. وضعه فوق الأبيض أو الكحلي، أو على ملابس الفني، يحتاج تصديرًا أصليًا شفافًا/متجهيًا؛ لا نرسم نسخة بديلة.</div>
+      <div class="cover-meta"><span class="pill">موقع واحد: الحدايق</span><span class="pill">Cairo · 400 / 600 / 700</span><span class="pill"><span class="ltr">1080 × 1350</span> أساسي</span></div>
+    </main>
+    <footer class="page-footer"><span>5 أكتوبر 2026 · دليل عمل مقترح، وليس إعلانًا نهائيًا</span><span class="ltr">01 / 06</span></footer>
+  </section>
+
+  <section class="page" aria-label="الصفحة الثانية: الألوان والخط">
+    <header class="page-header"><span>الهندسية المتحدة</span><span class="label">الألوان والخط</span></header>
+    <main class="content">
+      <h2>ألوان ثابتة، وقراءة مريحة</h2>
+      <p class="small muted" style="margin-bottom:4mm">ألوان التنفيذ المستخدمة في التطبيق، ومتسقة مع الشعار. لا تمثل قياسات من ملف شعار متجهي أصلي.</p>
+      <div class="palette">
+        <div class="swatch"><div class="swatch-color" style="background:#000F50;color:white">كحلي أساسي</div><div class="swatch-label"><span>عناوين وخلفيات</span><code>#000F50</code></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#000A38;color:white">كحلي داكن</div><div class="swatch-label"><span>تذييل ومساحة ثانوية</span><code>#000A38</code></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#F19301;color:#000F50">برتقالي</div><div class="swatch-label"><span>حجز وتأكيد محدود</span><code>#F19301</code></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:white;color:#000F50">أبيض</div><div class="swatch-label"><span>نص ومساحات نظيفة</span><code>#FFFFFF</code></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#F6F7FB;color:#000F50">سطح فاتح</div><div class="swatch-label"><span>خلفية محايدة</span><code>#F6F7FB</code></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#4B5350;color:white">رمادي النص</div><div class="swatch-label"><span>نص ثانوي على الفاتح</span><code>#4B5350</code></div></div>
+      </div>
+      <div class="contrast">
+        <div style="background:var(--navy);color:white"><strong>أبيض على الكحلي</strong><br>تباين <span class="ltr">17.73:1</span></div>
+        <div style="background:var(--orange);color:var(--navy)"><strong>كحلي على البرتقالي</strong><br>تباين <span class="ltr">7.53:1</span></div>
+      </div>
+      <div class="gap"></div>
+      <div class="notice">الأبيض على البرتقالي: <span class="ltr">2.36:1</span>؛ لا يصل إلى حد النص الكبير في WCAG. لذلك نص الحجز على البرتقالي <strong>كحلي</strong>. نتجنب أيضًا الأزرق الكهربائي على الكحلي والأصفر الليموني.</div>
+      <div class="gap-lg"></div>
+      <h3>خط واحد: Cairo</h3>
+      <p class="type-sample">سخانك جاهز للشتا؟</p>
+      <p class="type-spec">400 للنص · 600 للعناوين الثانوية · 700 للعناوين والأرقام</p>
+      <div class="gap"></div>
+      <table aria-label="مقاسات الخط على لوحة عرضها 1080 بكسل">
+        <thead><tr><th>العنصر</th><th>الحجم على 1080px</th><th>ارتفاع السطر</th></tr></thead>
+        <tbody><tr><td>العنوان الرئيسي · سطران كحد أقصى</td><td><span class="ltr">84–96px</span></td><td>1.25</td></tr><tr><td>وصف قصير</td><td><span class="ltr">36–44px</span></td><td>1.5</td></tr><tr><td>رقم الحجز · وزن 700</td><td><span class="ltr">44–48px</span></td><td>1.4</td></tr><tr><td>عنوان ثانوي</td><td><span class="ltr">48px</span></td><td>1.4</td></tr></tbody>
+      </table>
+      <p class="type-rules">لا تطويل يدوي للحروف العربية. كل رقم هاتف في إطار LTR مستقل. التصحيح: <strong>فنيين</strong> و<strong>على</strong>. نقلل الكلمات عند الزحام، ونختبر القراءة بعرض 360px.</p>
+    </main>
+    <footer class="page-footer"><span>لون تأكيد أساسي واحد · الصور والتدرجات تحتاج فحص تباين منفصلًا</span><span class="ltr">02 / 06</span></footer>
+  </section>
+
+  <section class="page" aria-label="الصفحة الثالثة: الشبكة والقالب">
+    <header class="page-header"><span>الهندسية المتحدة</span><span class="label">الشبكة والمكونات</span></header>
+    <main class="content">
+      <h2>قالب يتكرر من غير زحمة</h2>
+      <p class="lead">هذا مخطط ترتيب للعناصر، وليس إعلانًا نهائيًا. الصورة والشعار النهائيان يحتاجان الأصول الأصلية.</p>
+      <div class="template-area">
+        <div>
+          <div class="poster-guide">
+            <div class="poster-top">موضع الشعار والاسم الأصليين</div>
+            <div class="poster-guide-title">اسم الخدمة<br>أو مشكلة العميل</div>
+            <div class="poster-image-slot"><strong>موضع صورة حقيقية واحدة</strong><small>تعكس خدمة البوست</small></div>
+            <p class="poster-desc">جملة شرح قصيرة وواضحة.<br>المزايا عند تأكيدها فقط.</p>
+            <div class="poster-footer"><span class="poster-cta">اتصل للحجز</span><div><span class="poster-phone">01016183923</span><span class="poster-phone">01288845452</span></div></div>
+          </div>
+          <div class="grid-lines" aria-label="ستة أعمدة"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span></div>
+          <p class="tiny muted" style="margin-top:2mm">الأرقام من البوستات المرسلة؛ تُراجع قبل النشر. هذا المخطط لا يعتمد أيًا منهما كواتساب.</p>
+        </div>
+        <div class="metric-list">
+          <div class="card"><h3>المقاسات</h3><p><span class="ltr">1080×1350</span> أساسي<br><span class="ltr">1080×1080</span> مربع<br><span class="ltr">1080×1920</span> ستوري</p></div>
+          <div class="card"><h3>شبكة 6 أعمدة</h3><p>هوامش 64px · فواصل 24px<br>وحدة مسافات 8px<br>عرض العمود نحو 138.67px</p></div>
+          <div class="card"><h3>تذييل ثابت</h3><p>ارتفاع 160px. في الأساسي يبدأ عند y=1126px، وينتهي قبل هامش 64px السفلي.</p></div>
+          <div class="card"><h3>مساحة الستوري الآمنة</h3><p>250px أعلى و300px أسفل كبداية. نراجع أيضًا معاينة المنصة حتى لا تغطي الواجهة الحجز.</p></div>
+        </div>
+      </div>
+      <div class="gap-lg"></div>
+      <div class="two-col">
+        <div class="card"><h3>مكون المزايا</h3><p>أيقونات خطية من مجموعة واحدة، بنفس الحجم والسمك. حتى 3 مزايا مؤكدة؛ يمكن حذفها.</p><div class="component-row"><div class="component-icon"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="مثال أيقونة خطية"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg></div><p class="component-label">24px / خط 2px<br>72px / خط 6px</p></div></div>
+        <div class="card"><h3>مكون الحجز</h3><p>مساحة كحلية، دعوة برتقالية بنص كحلي، أرقام بيضاء. كل رقم في سطر مستقل، مع نفس الترتيب في السلسلة.</p><p class="component-note">استدارة 24px على لوحة 1080px. لا نستخدم شرطة سفلية للفصل.</p></div>
+      </div>
+      <p class="component-note muted">الشعار: فراغ حماية 12.5% من عرضه الظاهر. يبدأ اختبار الرسم نفسه من عرض 180px؛ مساحة JPG السوداء ليست عرض الرسم. نعيد توزيع العناصر لكل مقاس، من غير تمديد أو قص النص.</p>
+    </main>
+    <footer class="page-footer"><span>خدمة واحدة · صورة واحدة · عنوان واحد · إجراء واحد</span><span class="ltr">03 / 06</span></footer>
+  </section>
+
+  <section class="page" aria-label="الصفحة الرابعة: مراجعة البوست الأول">
+    <header class="page-header"><span>الهندسية المتحدة</span><span class="label">مراجعة البوست الأول</span></header>
+    <main class="content">
+      <p class="eyebrow">البوست: «الشتا وصل وإنت جاهز؟»</p>
+      <h2>الفكرة مفهومة، والتكوين مزدحم</h2>
+      <p class="small muted" style="margin-bottom:4mm">صورة الفني توضح خدمة تكييف، لكن باقي العناصر تنافسها. الأولوية لتثبيت الهوية واختيار خدمة واحدة.</p>
+      <div class="audit-list">
+        <div class="audit-item"><span class="audit-index">1</span><div><h3>شعار ظهر الفني مختلف عن الأصل</h3><p>الترس والأدوات والكتابة ليست نفس العلامة. نستخدم صورة بلا شعار مركب أو صورة فعلية بالشعار الأصلي؛ لا نولّد علامة بديلة.</p></div></div>
+        <div class="audit-item"><span class="audit-index">2</span><div><h3>الألوان والتباين خارج الهوية</h3><p>الليموني والأزرق الكهربائي يُستبدلان بالبرتقالي والأبيض. الأبيض على الليموني والأيقونات الزرقاء على الكحلي ضعيفان بصريًا.</p></div></div>
+        <div class="audit-item"><span class="audit-index">3</span><div><h3>صورة فني + 3 أجهزة + ثلج وسحب وفرش</h3><p>إذا الخدمة تكييف، نحتفظ بالفني والتكييف ونحذف الأجهزة الثلاثة والزخرفة المتكررة. نعرّف المركز مرة واحدة.</p></div></div>
+        <div class="audit-item"><span class="audit-index">4</span><div><h3>الحجز والإملاء والوعود</h3><p>نفصل الرقمين في سطرين LTR بدل «_». نصحح «فنيين» و«على»، ونحذف سرعة الخدمة والضمان حتى تتأكد تفاصيلهما.</p></div></div>
+      </div>
+      <div class="gap-lg"></div>
+      <h3>نسخة نصية مقترحة</h3>
+      <div class="copy-box"><p class="copy-title">تكييفك جاهز للشتا؟</p><p>احجز صيانة التكييف مع الهندسية المتحدة.</p><p>صيانة الأجهزة المنزلية — الحدايق</p><p class="copy-cta">اتصل للحجز</p><div class="copy-phones"><span class="ltr">01016183923</span><span class="ltr">01288845452</span></div></div>
+      <div class="gap"></div>
+      <div class="notice">هذه النسخة مناسبة إذا كانت صيانة التكييف خدمة مؤكدة. لو الإعلان للصيانة العامة، يتغير العنوان والتكوين معًا. لا نضيف فحصًا أو تنظيفًا أو توفيرًا للطاقة قبل تأكيد نطاق الخدمة.</div>
+      <p class="tiny muted" style="margin-top:3mm">الأرقام كما وردت في التصميمين؛ تُراجع قبل النشر. النص المقترح ليس اعتمادًا لوعود أو تفاصيل تشغيلية غير مؤكدة.</p>
+    </main>
+    <footer class="page-footer"><span>التعديل الأهم: تركيز الرسالة، وإعادة الهوية الأصلية</span><span class="ltr">04 / 06</span></footer>
+  </section>
+
+  <section class="page" aria-label="الصفحة الخامسة: مراجعة البوست الثاني">
+    <header class="page-header"><span>الهندسية المتحدة</span><span class="label">مراجعة البوست الثاني</span></header>
+    <main class="content">
+      <p class="eyebrow">البوست: «دخول الشتاء»</p>
+      <h2>أقرب للهوية، ويحتاج ضبطًا</h2>
+      <p class="small muted" style="margin-bottom:4mm">الكحلي والبرتقالي والخدمة الواحدة وشريط الاتصال اتجاه مناسب. نثبت هذه العناصر وننظف التفاصيل.</p>
+      <div class="audit-list">
+        <div class="audit-item"><span class="audit-index">1</span><div><h3>الرأس قريب جدًا من الحافة</h3><p>نوسع الهامش العلوي ونحافظ على فراغ حماية الشعار. رأس بسيط داخل مساحة 64px آمنة بدل التزاحم أعلى الشكل الأبيض.</p></div></div>
+        <div class="audit-item"><span class="audit-index">2</span><div><h3>التطويل في «الشتاء» غير ثابت</h3><p>Cairo 700 من غير مد الحروف يدويًا. عنوان واضح ومختصر بدل كلمة طويلة تأخذ المساحة الأساسية.</p></div></div>
+        <div class="audit-item"><span class="audit-index">3</span><div><h3>المزايا ومحاذاتها تحتاج توحيدًا</h3><p>مجموعة أيقونات واحدة ووزن واحد، ونصوص على نفس المحاذاة والارتفاع. نتخلص من الفواصل والثُلج المتكرر عند عدم الحاجة.</p></div></div>
+        <div class="audit-item"><span class="audit-index">4</span><div><h3>الصورة سخان مياه، والجملة توحي بتدفئة البيت</h3><p>نستبدل «خلي بيتك دافي ومريح» برسالة تخص السخان. إبراز «صيانة السخانات» وصورة خدمة فعلية يجعلان المقصود أوضح؛ نراجع «جميع الأنواع» والضمان والإملاء.</p></div></div>
+      </div>
+      <div class="gap-lg"></div>
+      <h3>نسخة نصية مقترحة</h3>
+      <div class="copy-box"><p class="copy-title">سخانك جاهز للشتا؟</p><p>احجز صيانة السخان قبل البرد.</p><p>الهندسية المتحدة — صيانة الأجهزة المنزلية · الحدايق</p><p class="copy-cta">اتصل للحجز</p><div class="copy-phones"><span class="ltr">01016183923</span><span class="ltr">01288845452</span></div></div>
+      <div class="gap"></div>
+      <div class="notice">نثبت شكل الحجز نفسه في البوستين. «صيانة السخانات» تكفي إلى أن يتأكد نطاق الأنواع. لو الضمان معتمد، نذكر مدته وشروطه في نص البوست أو مرجع واضح.</div>
+      <p class="tiny muted" style="margin-top:3mm">الأرقام من البوستات وتحتاج تأكيدًا؛ لا يوجد رقم واتساب معتمد في هذا التسليم. صيانة السخانات نفسها تُراجع ضمن نطاق خدمات المركز.</p>
+    </main>
+    <footer class="page-footer"><span>التعديل الأهم: وضوح الصيانة، وهوامش وخط ومحاذاة ثابتة</span><span class="ltr">05 / 06</span></footer>
+  </section>
+
+  <section class="page" aria-label="الصفحة السادسة: رسالة التسليم والمراجعة">
+    <header class="page-header"><span>الهندسية المتحدة</span><span class="label">التسليم والاعتماد</span></header>
+    <main class="content">
+      <h2>ملاحظات تتبعت، وقالب يتكرر</h2>
+      <h3>رسالة جاهزة للمصممة</h3>
+      <div class="feedback">
+        <p>تسلمي على الشغل. البوست الثاني أقرب للشكل اللي محتاجينه؛ ألوانه أنسب، الخدمة فيه أوضح، وشريط الاتصال سهل القراءة. محتاجين نثبت كحلي وبرتقالي وأبيض وخط Cairo، ونفس مكان الشعار والحجز في كل البوستات.</p>
+        <p>في الأول نقلل الزحمة ونركز على خدمة واحدة؛ نشيل الليموني والأزرق الكهربائي ونقلل الزخرفة. لو التركيز على التكييف نشيل مجموعة الأجهزة اللي تحت، ولو الإعلان عام نوضح ده في العنوان. شعار ظهر الفني مختلف عن شعارنا، فمحتاجين صورة من غير شعار مركب أو صورة فعلية بالشعار الأصلي.</p>
+        <p>في الثاني نوسع الهامش فوق، نقلل التطويل في «الشتاء»، ونوحد المزايا والأيقونات. نغير «خلي بيتك دافي» إلى «اطمّن على سخانك قبل البرد»، ونبرز صيانة السخانات.</p>
+        <p>نصحح «فنيين» و«على» ونراجع الرقمين. الضمان والسرعة وجميع الأنواع محتاجين تفاصيل مؤكدة. امشي على المرجع ده وابعتي نسخة <span class="ltr">1080×1350</span> ومعاينة صغيرة للموبايل قبل التصدير النهائي.</p>
+      </div>
+      <div class="gap-lg"></div>
+      <div class="two-col">
+        <div><h3>قبل النشر</h3><ul class="checklist"><li>الشعار الأصلي ونسبه والاسم صحيحان.</li><li>خدمة وصورة وعنوان وحجز واضحون.</li><li>الوعود والصورة والأرقام مؤكدة.</li><li>النص والأرقام مقروءان بعرض 360px.</li><li>الهامش والتباين ومساحة الستوري سليمة.</li><li>لا تطويل عربي، ولا «_» بين الأرقام.</li></ul></div>
+        <div><h3>المطلوب لاعتماد الإعلان</h3><ul class="checklist"><li>تأكيد الرقمين ووجود واتساب إن وجد.</li><li>نطاق الأجهزة والخدمات الفعلي.</li><li>مدة وشروط الضمان ومواعيد الاستجابة.</li><li>ملف شعار شفاف/متجهي أصلي.</li><li>صور فعلية أو مرخصة للخدمة.</li><li>العنوان التفصيلي؛ المعروف: الحدايق.</li></ul></div>
+      </div>
+      <div class="gap"></div>
+      <div class="export-strip"><strong>التسليم النهائي</strong><br>مصدر قابل للتعديل + الخط وترخيصه + أصول الشعار والصور + 3 مقاسات منفصلة. تصدير sRGB: PNG للنص والمساحات المسطحة، أو JPG عالي الجودة للصورة. لا تمديد ولا تصدير بلقطة شاشة.</div>
+      <p class="tiny muted" style="margin-top:3mm">المرجع التفصيلي: design-system.md · توكنز قابلة للمشاركة: tokens.json<br>الشعار وتذييل الحجز يُقفلان في القالب؛ العنوان والوصف والصورة يتغيرون مع الخدمة.</p>
+    </main>
+    <footer class="page-footer"><span>لا فروع أو تفاصيل اتصال أو وعود غير مؤكدة</span><span class="ltr">06 / 06</span></footer>
+  </section>
+</body>
+</html>
