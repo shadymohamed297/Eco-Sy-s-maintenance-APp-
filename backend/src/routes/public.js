@@ -1,11 +1,11 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { pool } = require('../db');
+const { BRANCH, createChecklist, recordEvent } = require('../domain');
 
 const router = express.Router();
 
 const DEVICE_TYPES = ['مكيف', 'غسالة', 'ثلاجة', 'سخان', 'بوتاجاز', 'أخرى'];
-const BRANCHES = ['مدينة نصر', 'المعادي', 'الرحاب'];
 
 const STATUS_LABELS = {
   new: 'تم استلام الطلب',
@@ -32,7 +32,7 @@ router.post('/requests', submitLimiter, async (req, res) => {
   const name = cleanText(req.body?.name, 120);
   const phone = cleanText(req.body?.phone, 30);
   const address = cleanText(req.body?.address, 300);
-  const branch = cleanText(req.body?.branch, 50);
+  const resolvedBranch = BRANCH;
   const deviceType = cleanText(req.body?.deviceType, 20);
   const brand = cleanText(req.body?.brand, 60);
   const model = cleanText(req.body?.model, 60);
@@ -53,18 +53,11 @@ router.post('/requests', submitLimiter, async (req, res) => {
   if (!DEVICE_TYPES.includes(deviceType)) {
     return res.status(400).json({ error: 'نوع الجهاز غير صحيح' });
   }
-  // A new customer has no branch on file yet, and work_orders.branch is required, so the
-  // request itself must always supply one (the website form already requires this field).
-  const existingCustomer = (await pool.query('SELECT branch FROM customers WHERE phone = $1', [phone])).rows[0];
-  const resolvedBranch = branch || existingCustomer?.branch || null;
-  if (!resolvedBranch || !BRANCHES.includes(resolvedBranch)) {
-    return res.status(400).json({ error: 'الفرع مطلوب' });
-  }
-
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [phone]);
     let customerRow = (await client.query('SELECT * FROM customers WHERE phone = $1', [phone])).rows[0];
     if (!customerRow) {
       customerRow = (
@@ -82,14 +75,16 @@ router.post('/requests', submitLimiter, async (req, res) => {
       )
     ).rows[0];
 
-    const codeRow = await client.query("SELECT nextval(pg_get_serial_sequence('work_orders','id')) AS n");
-    const code = `WO-${2400 + Number(codeRow.rows[0].n)}`;
-    await client.query(
-      `INSERT INTO work_orders (code, customer_id, device_id, branch, issue_description, status, priority, source)
-       VALUES ($1,$2,$3,$4,$5,'new','normal','online')`,
-      [code, customerRow.id, deviceRow.id, resolvedBranch, issueDescription]
+    const id = Number((await client.query("SELECT nextval(pg_get_serial_sequence('work_orders','id')) AS n")).rows[0].n);
+    const code = `WO-${String(id).padStart(6, '0')}`;
+    const order = await client.query(
+      `INSERT INTO work_orders (id, code, customer_id, device_id, branch, issue_description, service_address, status, priority, source)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'new','normal','online') RETURNING id`,
+      [id, code, customerRow.id, deviceRow.id, resolvedBranch, issueDescription, address || customerRow.address || null]
     );
 
+    await createChecklist(client, order.rows[0].id);
+    await recordEvent(client, order.rows[0].id, null, 'تم استلام الطلب من الموقع');
     await client.query('COMMIT');
     return res.status(201).json({ code });
   } catch (err) {

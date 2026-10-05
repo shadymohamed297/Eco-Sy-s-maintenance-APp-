@@ -2,10 +2,11 @@ const express = require('express');
 const { pool } = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
+const { BRANCH, revenueExpr, roundMoney } = require('../domain');
 const router = express.Router();
 
 router.get('/reception', requireAuth, requireRole('reception', 'manager'), async (req, res) => {
-  const branch = req.query.branch || req.user.branch;
+  const branch = BRANCH;
 
   const counts = await pool.query(
     `SELECT
@@ -19,13 +20,13 @@ router.get('/reception', requireAuth, requireRole('reception', 'manager'), async
   );
 
   const approvals = await pool.query(
-    `SELECT wo.id, wo.code, wo.issue_description, wo.created_at,
+    `SELECT wo.id, wo.code, wo.issue_description, wo.created_at, wo.quoted_at,
             c.name AS customer_name, d.device_type
      FROM work_orders wo
      JOIN customers c ON c.id = wo.customer_id
      JOIN devices d ON d.id = wo.device_id
      WHERE wo.status = 'awaiting_approval'
-     ORDER BY wo.created_at ASC`
+     ORDER BY wo.quoted_at ASC NULLS FIRST, wo.created_at ASC`
   );
 
   const appointments = await pool.query(
@@ -36,7 +37,7 @@ router.get('/reception', requireAuth, requireRole('reception', 'manager'), async
      JOIN customers c ON c.id = wo.customer_id
      JOIN devices d ON d.id = wo.device_id
      LEFT JOIN users t ON t.id = wo.technician_id
-     WHERE wo.scheduled_at::date = current_date
+     WHERE (wo.scheduled_at AT TIME ZONE 'Africa/Cairo')::date = (now() AT TIME ZONE 'Africa/Cairo')::date
      ORDER BY wo.scheduled_at ASC`
   );
 
@@ -51,7 +52,7 @@ router.get('/reception', requireAuth, requireRole('reception', 'manager'), async
     pendingApprovals: {
       count: approvals.rowCount,
       oldestHours: approvals.rowCount
-        ? Math.floor((Date.now() - new Date(approvals.rows[0].created_at)) / 3600000)
+        ? (approvals.rows[0].quoted_at ? Math.max(0, Math.floor((Date.now() - new Date(approvals.rows[0].quoted_at)) / 3600000)) : null)
         : 0,
       items: approvals.rows.map((r) => ({
         id: r.id,
@@ -84,9 +85,9 @@ router.get('/manager', requireAuth, requireRole('manager'), async (req, res) => 
 
   const kpis = await pool.query(
     `WITH current_period AS (
-       SELECT * FROM work_orders WHERE closed_at >= now() - $1::interval
+       SELECT * FROM work_orders WHERE status = 'closed' AND closed_at >= now() - $1::interval
      ), previous_period AS (
-       SELECT * FROM work_orders WHERE closed_at >= now() - $2::interval AND closed_at < now() - $1::interval
+       SELECT * FROM work_orders WHERE status = 'closed' AND closed_at >= now() - $2::interval AND closed_at < now() - $1::interval
      )
      SELECT
        (SELECT count(*) FROM current_period) AS completed_count,
@@ -102,12 +103,10 @@ router.get('/manager', requireAuth, requireRole('manager'), async (req, res) => 
 
   const weeklyRevenue = await pool.query(
     `SELECT date_trunc('week', wo.closed_at) AS week_start,
-            sum(i.labor_fee + i.warranty_discount
-                + COALESCE((SELECT sum(p.price) FROM parts_used p WHERE p.work_order_id = wo.id AND p.status = 'used'), 0)
-            ) * (1 + avg(i.tax_rate)) AS revenue
+            sum(${revenueExpr()}) AS revenue
      FROM work_orders wo
      JOIN invoices i ON i.work_order_id = wo.id
-     WHERE wo.closed_at >= now() - $1::interval
+     WHERE wo.status = 'closed' AND wo.closed_at >= now() - $1::interval
      GROUP BY week_start
      ORDER BY week_start ASC`,
     [interval]
@@ -144,7 +143,7 @@ router.get('/manager', requireAuth, requireRole('manager'), async (req, res) => 
     },
     weeklyRevenue: weeklyRevenue.rows.map((r) => ({
       weekStart: r.week_start,
-      revenue: Math.round(Number(r.revenue)),
+      revenue: roundMoney(Number(r.revenue)),
     })),
     faultDistribution: faultDistribution.rows.map((r) => ({
       deviceType: r.device_type,

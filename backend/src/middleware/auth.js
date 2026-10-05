@@ -17,12 +17,16 @@ async function requireAuth(req, res, next) {
   // A 30-day token can outlive a deactivated employee (fired, phone lost, etc.), so a
   // manager deactivating an account needs to cut off access immediately rather than
   // waiting for the token to expire on its own.
-  const { rows } = await pool.query('SELECT active FROM users WHERE id = $1', [payload.id]);
+  const { rows } = await pool.query('SELECT id, name, role, branch, active, token_version FROM users WHERE id = $1', [payload.id]);
   if (!rows[0] || !rows[0].active) {
     return res.status(401).json({ error: 'Account is deactivated' });
   }
 
-  req.user = payload;
+  if ((payload.tokenVersion ?? 0) !== rows[0].token_version) {
+    return res.status(401).json({ error: 'انتهت الجلسة. يرجى تسجيل الدخول مجدداً' });
+  }
+
+  req.user = { id: rows[0].id, name: rows[0].name, role: rows[0].role, branch: rows[0].branch };
   return next();
 }
 

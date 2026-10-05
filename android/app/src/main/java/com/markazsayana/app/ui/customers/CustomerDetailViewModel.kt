@@ -9,11 +9,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import javax.inject.Inject
 
 sealed interface CustomerDetailUiState {
     data object Loading : CustomerDetailUiState
-    data class Success(val data: CustomerDetailResponse) : CustomerDetailUiState
+    data class Success(val data: CustomerDetailResponse, val saving: Boolean = false, val saveError: String? = null, val savedVersion: Int = 0) : CustomerDetailUiState
     data class Error(val message: String) : CustomerDetailUiState
 }
 
@@ -27,16 +29,20 @@ class CustomerDetailViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<CustomerDetailUiState>(CustomerDetailUiState.Loading)
     val uiState: StateFlow<CustomerDetailUiState> = _uiState
+    private var request: Job? = null
 
     init {
         load()
     }
 
     fun load() {
+        if ((_uiState.value as? CustomerDetailUiState.Success)?.saving == true) return
+        request?.cancel()
         _uiState.value = CustomerDetailUiState.Loading
-        viewModelScope.launch {
+        request = viewModelScope.launch {
             try {
                 _uiState.value = CustomerDetailUiState.Success(repository.detail(customerId))
+            } catch (e: CancellationException) { throw e
             } catch (e: Exception) {
                 _uiState.value = CustomerDetailUiState.Error("تعذّر تحميل بيانات العميل")
             }
@@ -44,12 +50,16 @@ class CustomerDetailViewModel @Inject constructor(
     }
 
     fun updateCustomer(name: String, phone: String, address: String?) {
+        val current = _uiState.value as? CustomerDetailUiState.Success ?: return
+        if (current.saving) return
+        _uiState.value = current.copy(saving = true, saveError = null)
         viewModelScope.launch {
             try {
-                repository.update(customerId, name, phone, address)
-                load()
+                val customer = repository.update(customerId, name, phone, address)
+                _uiState.value = current.copy(data = current.data.copy(customer = customer), savedVersion = current.savedVersion + 1)
+            } catch (e: CancellationException) { throw e
             } catch (e: Exception) {
-                // The detail screen keeps showing the previous values; the manager can retry from the edit dialog.
+                _uiState.value = current.copy(saveError = "تعذّر حفظ بيانات العميل. راجع الاسم ورقم الهاتف وحاول مرة أخرى.")
             }
         }
     }

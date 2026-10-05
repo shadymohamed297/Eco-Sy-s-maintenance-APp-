@@ -4,6 +4,7 @@ import com.markazsayana.app.data.remote.ApiService
 import com.markazsayana.app.data.remote.CustomerDetailResponse
 import com.markazsayana.app.data.remote.CustomerDto
 import com.markazsayana.app.data.remote.CustomerSummaryDto
+import com.markazsayana.app.data.remote.CustomersListResponse
 import com.markazsayana.app.data.remote.UpdateCustomerRequest
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -12,6 +13,8 @@ import javax.inject.Singleton
 class CustomerRepository @Inject constructor(private val api: ApiService) {
     suspend fun list(search: String? = null): List<CustomerSummaryDto> =
         api.listCustomers(search = search, limit = 100).items
+    suspend fun listPage(search: String? = null, offset: Int = 0, limit: Int = 30): CustomersListResponse =
+        api.listCustomers(search = search, offset = offset, limit = limit)
 
     suspend fun detail(id: Int): CustomerDetailResponse = api.customerDetail(id)
 

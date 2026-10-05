@@ -2,17 +2,18 @@ const express = require('express');
 const { pool } = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
+const { BRANCH, positiveId, pagination, text, fail, handleError } = require('../domain');
 const router = express.Router();
+router.param('id', (req, res, next, value) => { positiveId(value); next(); });
 
 router.get('/', requireAuth, requireRole('reception', 'manager'), async (req, res) => {
   const { search } = req.query;
-  const limit = Math.min(Number(req.query.limit) || 30, 100);
-  const offset = Math.max(Number(req.query.offset) || 0, 0);
+  const { limit, offset } = pagination(req.query);
 
   const where = [];
   const params = [];
   if (search) {
-    params.push(`%${search}%`);
+    params.push(`%${text(search, 'البحث', 200)}%`);
     where.push(`(c.name ILIKE $${params.length} OR c.phone ILIKE $${params.length})`);
   }
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
@@ -56,7 +57,7 @@ router.get('/:id', requireAuth, requireRole('reception', 'manager'), async (req,
   const devices = await pool.query('SELECT * FROM devices WHERE customer_id = $1 ORDER BY created_at DESC', [customer.id]);
 
   const workOrders = await pool.query(
-    `SELECT wo.id, wo.code, wo.status, wo.priority, wo.issue_description, wo.created_at, wo.closed_at,
+    `SELECT wo.id, wo.code, wo.status, wo.priority, wo.issue_description, wo.created_at, wo.scheduled_at, wo.started_at, wo.closed_at,
             d.device_type, t.name AS technician_name
      FROM work_orders wo
      JOIN devices d ON d.id = wo.device_id
@@ -92,13 +93,20 @@ router.get('/:id', requireAuth, requireRole('reception', 'manager'), async (req,
       deviceType: wo.device_type,
       technicianName: wo.technician_name,
       createdAt: wo.created_at,
+      scheduledAt: wo.scheduled_at,
+      startedAt: wo.started_at,
       closedAt: wo.closed_at,
     })),
   });
 });
 
 router.patch('/:id', requireAuth, requireRole('reception', 'manager'), async (req, res) => {
-  const { name, phone, address, branch } = req.body || {};
+  const body = req.body || {};
+  const name = text(body.name, 'الاسم', 120, body.name !== undefined);
+  const phone = text(body.phone, 'رقم الهاتف', 30, body.phone !== undefined);
+  const address = text(body.address, 'العنوان', 300);
+  if (phone && !/^[0-9+\s-]{8,20}$/.test(phone)) fail(400, 'رقم الهاتف غير صحيح');
+  if (phone && (await pool.query('SELECT id FROM customers WHERE phone = $1 AND id != $2 LIMIT 1', [phone, req.params.id])).rowCount) fail(409, 'رقم الهاتف مسجل لعميل آخر');
   const { rows } = await pool.query(
     `UPDATE customers SET
        name = COALESCE($1, name),
@@ -106,7 +114,7 @@ router.patch('/:id', requireAuth, requireRole('reception', 'manager'), async (re
        address = COALESCE($3, address),
        branch = COALESCE($4, branch)
      WHERE id = $5 RETURNING *`,
-    [name || null, phone || null, address, branch, req.params.id]
+    [name, phone, address, body.branch === undefined ? null : BRANCH, req.params.id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Customer not found' });
   return res.json({
@@ -120,4 +128,5 @@ router.patch('/:id', requireAuth, requireRole('reception', 'manager'), async (re
   });
 });
 
+router.use(handleError);
 module.exports = router;

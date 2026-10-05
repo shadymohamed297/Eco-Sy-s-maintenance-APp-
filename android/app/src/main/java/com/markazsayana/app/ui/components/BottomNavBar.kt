@@ -1,12 +1,14 @@
 package com.markazsayana.app.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,6 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.markazsayana.app.ui.theme.BorderLight
 import com.markazsayana.app.ui.theme.CardWhite
@@ -26,7 +30,7 @@ data class BottomNavItem(val label: String, val route: String)
 
 /**
  * White bottom bar with a 24x3dp active indicator, matching every screen footer.
- * Reception uses the petrol-green active color; technician/manager screens use near-black.
+ * The width adapts to the role's tabs and respects Android's system navigation area.
  */
 @Composable
 fun BottomNavBar(
@@ -39,8 +43,8 @@ fun BottomNavBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(CardWhite)
-            .padding(top = 8.dp, bottom = 4.dp)
-            .then(Modifier),
+            .navigationBarsPadding()
+            .padding(top = 8.dp, bottom = 4.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
         for (item in items) {
@@ -49,9 +53,11 @@ fun BottomNavBar(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(5.dp),
                 modifier = Modifier
-                    .clickable { onSelect(item.route) }
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+                    .selectable(selected = selected, role = Role.Tab, onClick = { onSelect(item.route) })
                     .padding(vertical = 6.dp)
-                    .width(76.dp),
+                    .padding(horizontal = 2.dp),
             ) {
                 androidx.compose.foundation.layout.Box(
                     modifier = Modifier
@@ -66,6 +72,8 @@ fun BottomNavBar(
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                     ),
                     color = if (selected) activeColor else TextTertiary,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
                 )
             }
         }

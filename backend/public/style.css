@@ -55,11 +55,12 @@ header.site-header .container {
 }
 
 .brand-logo {
-  height: 40px;
-  width: auto;
-  background: #fff;
+  height: 76px;
+  width: 104px;
+  object-fit: contain;
+  background: #000;
   border-radius: 8px;
-  padding: 4px 6px;
+  padding: 0;
 }
 
 .brand {
@@ -115,7 +116,7 @@ nav.site-nav a:hover { opacity: 1; text-decoration: underline; }
   text-align: center;
 }
 
-.btn-primary { background: var(--orange); color: #fff; }
+.btn-primary { background: var(--orange); color: var(--petrol); }
 .btn-secondary { background: rgba(255, 255, 255, 0.14); color: #fff; }
 .btn-block { display: block; width: 100%; }
 .btn:disabled { opacity: 0.6; cursor: default; }
@@ -194,7 +195,7 @@ nav.site-nav a:hover { opacity: 1; text-decoration: underline; }
 
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-.hp-field { position: absolute; left: -9999px; }
+.hp-field { position: absolute; inset-inline-start: 0; top: 0; width: 1px; height: 1px; padding: 0; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; pointer-events: none; }
 
 .form-msg {
   margin-top: 14px;
@@ -262,4 +263,10 @@ footer {
 @media (max-width: 420px) {
   .row-2 { grid-template-columns: 1fr; }
   .hero h1 { font-size: 22px; }
+}
+
+@media (max-width: 480px) {
+  header.site-header .container { flex-wrap: wrap; gap: 14px; }
+  .brand { font-size: 18px; }
+  nav.site-nav a { margin-inline-start: 0; margin-inline-end: 16px; }
 }

@@ -12,6 +12,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -44,12 +47,12 @@ fun ChangePasswordIconButton(
     var showDialog by remember { mutableStateOf(false) }
     Box(
         modifier = modifier
-            .size(36.dp)
+            .size(48.dp)
             .background(background, CircleShape)
             .clickable { showDialog = true },
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = "🔑", color = contentColor, style = MaterialTheme.typography.titleMedium)
+        Icon(Icons.Outlined.Key, contentDescription = "تغيير كلمة المرور", tint = contentColor)
     }
     if (showDialog) {
         ChangePasswordDialog(onDismiss = { showDialog = false })
@@ -69,7 +72,9 @@ private fun ChangePasswordDialog(
     LaunchedEffect(Unit) { viewModel.reset() }
 
     val mismatch = confirmPassword.isNotBlank() && newPassword != confirmPassword
-    val canSubmit = currentPassword.isNotBlank() && newPassword.length >= 8 && !mismatch
+    val canSubmit = currentPassword.isNotBlank() && newPassword.length >= 8 &&
+        newPassword.toByteArray(Charsets.UTF_8).size <= 72 && confirmPassword.isNotBlank() &&
+        !mismatch && state !is ChangePasswordUiState.Loading
 
     AlertDialog(
         onDismissRequest = onDismiss,

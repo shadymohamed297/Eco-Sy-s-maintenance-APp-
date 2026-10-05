@@ -1,6 +1,7 @@
 package com.markazsayana.app.ui.manager
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,7 @@ import com.markazsayana.app.ui.components.FullScreenLoading
 import com.markazsayana.app.ui.components.OutlinedCard
 import com.markazsayana.app.ui.components.navItemsForRole
 import com.markazsayana.app.ui.navigation.Routes
+import com.markazsayana.app.ui.workorders.RefreshOnResume
 import com.markazsayana.app.ui.theme.CardWhite
 import com.markazsayana.app.ui.theme.BrandNavy
 import com.markazsayana.app.ui.theme.BrandNavyChipBg
@@ -48,9 +50,11 @@ private val nav = navItemsForRole("manager")
 @Composable
 fun TechniciansRosterScreen(
     onNavTab: (String) -> Unit,
+    onOpenTechnician: (Int) -> Unit,
     viewModel: TechniciansRosterViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    RefreshOnResume(viewModel::load)
 
     Scaffold(
         containerColor = SurfaceScreen,
@@ -59,27 +63,28 @@ fun TechniciansRosterScreen(
         when (val s = state) {
             is TechniciansRosterUiState.Loading -> FullScreenLoading(Modifier.padding(padding))
             is TechniciansRosterUiState.Error -> FullScreenError(s.message, onRetry = viewModel::load, modifier = Modifier.padding(padding))
-            is TechniciansRosterUiState.Success -> Content(s.technicians, Modifier.padding(padding))
+            is TechniciansRosterUiState.Success -> Content(s.technicians, onOpenTechnician, Modifier.padding(padding))
         }
     }
 }
 
 @Composable
-private fun Content(technicians: List<TechnicianRosterDto>, modifier: Modifier) {
+private fun Content(technicians: List<TechnicianRosterDto>, onOpenTechnician: (Int) -> Unit, modifier: Modifier) {
     Column(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxWidth().background(SurfaceDark).padding(16.dp)) {
             Text(text = "الفنيون", style = MaterialTheme.typography.titleLarge, color = CardWhite)
             Text(text = "${technicians.size.arabic()} فني", style = MaterialTheme.typography.bodySmall, color = TextOnDarkMuted)
         }
         LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(technicians, key = { it.id }) { tech -> TechnicianRow(tech) }
+            if (technicians.isEmpty()) item { Text("لم تُسجّل حسابات فنيين بعد. أضف الفنيين من إدارة الموظفين.", color = TextTertiary) }
+            items(technicians, key = { it.id }) { tech -> TechnicianRow(tech, onClick = { onOpenTechnician(tech.id) }) }
         }
     }
 }
 
 @Composable
-private fun TechnicianRow(tech: TechnicianRosterDto) {
-    OutlinedCard {
+private fun TechnicianRow(tech: TechnicianRosterDto, onClick: () -> Unit) {
+    OutlinedCard(modifier = Modifier.clickable(onClick = onClick)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(
                 modifier = Modifier.size(44.dp).clip(CircleShape).background(BrandNavyChipBg),
@@ -90,7 +95,7 @@ private fun TechnicianRow(tech: TechnicianRosterDto) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = tech.name, style = MaterialTheme.typography.bodyLarge, color = TextPrimary)
                 Text(
-                    text = "${tech.specialty ?: ""} · ${tech.branch ?: ""}",
+                    text = tech.specialty ?: "خط سير الزيارات وسجل العمل",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextTertiary,
                     modifier = Modifier.padding(top = 3.dp),

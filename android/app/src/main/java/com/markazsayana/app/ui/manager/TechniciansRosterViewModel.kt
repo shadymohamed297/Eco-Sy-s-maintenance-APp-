@@ -8,6 +8,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
 sealed interface TechniciansRosterUiState {
@@ -23,16 +25,19 @@ class TechniciansRosterViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<TechniciansRosterUiState>(TechniciansRosterUiState.Loading)
     val uiState: StateFlow<TechniciansRosterUiState> = _uiState
+    private var request: Job? = null
 
     init {
         load()
     }
 
     fun load() {
+        request?.cancel()
         _uiState.value = TechniciansRosterUiState.Loading
-        viewModelScope.launch {
+        request = viewModelScope.launch {
             try {
                 _uiState.value = TechniciansRosterUiState.Success(repository.roster())
+            } catch (e: CancellationException) { throw e
             } catch (e: Exception) {
                 _uiState.value = TechniciansRosterUiState.Error("تعذّر تحميل قائمة الفنيين")
             }

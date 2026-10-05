@@ -47,6 +47,9 @@ jobs:
           ./gradlew assembleDebug --stacktrace 2>&1 | tee /tmp/assemble.log
           exit ${PIPESTATUS[0]}
 
+      - name: Run unit regression tests
+        run: ./gradlew testDebugUnitTest --stacktrace
+
       - name: List build outputs (diagnostic)
         if: always()
         run: |

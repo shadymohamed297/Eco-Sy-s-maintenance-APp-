@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>الهندسة المتحدة — صيانة الأجهزة المنزلية وأجهزة الأسواق الحرة</title>
-<meta name="description" content="الهندسة المتحدة لصيانة جميع الأجهزة المنزلية وأجهزة الأسواق الحرة — اطلب صيانة أونلاين وتتبع حالة طلبك." />
-<link rel="icon" href="/favicon.png" type="image/png" />
+<title>الهندسية المتحدة — صيانة الأجهزة المنزلية وأجهزة الأسواق الحرة</title>
+<meta name="description" content="الهندسية المتحدة لصيانة جميع الأجهزة المنزلية وأجهزة الأسواق الحرة — اطلب صيانة أونلاين وتتبع حالة طلبك." />
+<link rel="icon" href="/logo.jpg" type="image/jpeg" />
 <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
@@ -13,9 +13,9 @@
 <header class="site-header">
   <div class="container">
     <div class="brand-row">
-      <img src="/logo.png" alt="الهندسة المتحدة" class="brand-logo" />
+      <img src="/logo.jpg" alt="الهندسية المتحدة" class="brand-logo" />
       <div>
-        <div class="brand">الهندسة المتحدة</div>
+        <div class="brand">الهندسية المتحدة</div>
         <div class="brand-sub">صيانة الأجهزة المنزلية وأجهزة الأسواق الحرة</div>
       </div>
     </div>
@@ -28,8 +28,8 @@
 
 <section class="hero">
   <div class="container">
-    <h1>صيانة أجهزتك بثقة</h1>
-    <p>أجهزة منزلية وأجهزة أسواق حرة — مكيفات، غسالات، ثلاجات، سخانات، وبوتاجاز — فنيون معتمدون، وتتبع لحالة طلبك خطوة بخطوة.</p>
+    <h1>جهازك محتاج صيانة؟ إحنا معك</h1>
+    <p>أجهزة منزلية وأجهزة أسواق حرة — مكيفات، غسالات، ثلاجات، سخانات، وبوتاجاز — فريق الصيانة يتابع معك من استلام الطلب لحد تسليم الجهاز.</p>
     <a href="#request" class="btn btn-primary">اطلب صيانة الآن</a>
   </div>
 </section>
@@ -45,7 +45,7 @@
       <div class="service-card"><span class="emoji">🍳</span>بوتاجاز</div>
       <div class="service-card"><span class="emoji">🛬</span>أجهزة أسواق حرة</div>
     </div>
-    <p class="branches">فروعنا: مدينة نصر · المعادي · الرحاب</p>
+    <p class="branches">مركز الهندسية المتحدة · الحدايق</p>
   </div>
 </section>
 
@@ -69,15 +69,7 @@
             <label for="phone">رقم الهاتف</label>
             <input type="tel" id="phone" name="phone" required maxlength="20" placeholder="01xxxxxxxxx" />
           </div>
-          <div class="field">
-            <label for="branch">الفرع</label>
-            <select id="branch" name="branch" required>
-              <option value="">اختر الفرع</option>
-              <option value="مدينة نصر">مدينة نصر</option>
-              <option value="المعادي">المعادي</option>
-              <option value="الرحاب">الرحاب</option>
-            </select>
-          </div>
+
         </div>
 
         <div class="field">
@@ -117,7 +109,7 @@
   </div>
 </section>
 
-<footer>الهندسة المتحدة — نظام إدارة الصيانة</footer>
+<footer>الهندسية المتحدة — نظام إدارة الصيانة</footer>
 
 <script>
 const form = document.getElementById('requestForm');
@@ -138,7 +130,7 @@ form.addEventListener('submit', async (e) => {
   const payload = {
     name: document.getElementById('name').value,
     phone: document.getElementById('phone').value,
-    branch: document.getElementById('branch').value,
+    branch: 'الحدايق',
     address: document.getElementById('address').value,
     deviceType: document.getElementById('deviceType').value,
     brand: document.getElementById('brand').value,
@@ -164,7 +156,7 @@ form.addEventListener('submit', async (e) => {
     );
     form.reset();
   } catch (err) {
-    showMsg('error', 'تعذّر الاتصال بالخادم، تحقق من الإنترنت وحاول مرة أخرى');
+    showMsg('error', 'مش قادرين نتصل دلوقتي. راجع الإنترنت وحاول تاني.');
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = 'إرسال الطلب';

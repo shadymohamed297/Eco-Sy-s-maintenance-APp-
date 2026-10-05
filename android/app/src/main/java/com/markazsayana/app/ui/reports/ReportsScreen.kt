@@ -32,6 +32,7 @@ import com.markazsayana.app.ui.components.FullScreenLoading
 import com.markazsayana.app.ui.components.OutlinedCard
 import com.markazsayana.app.ui.components.navItemsForRole
 import com.markazsayana.app.ui.navigation.Routes
+import com.markazsayana.app.ui.workorders.RefreshOnResume
 import com.markazsayana.app.ui.theme.CardWhite
 import com.markazsayana.app.ui.theme.Headline26Bold
 import com.markazsayana.app.ui.theme.BrandNavy
@@ -40,6 +41,7 @@ import com.markazsayana.app.ui.theme.SurfaceScreen
 import com.markazsayana.app.ui.theme.TextOnDarkMuted
 import com.markazsayana.app.ui.theme.TextPrimary
 import com.markazsayana.app.ui.theme.TextTertiary
+import com.markazsayana.app.ui.theme.UrgentRed
 import com.markazsayana.app.util.arabic
 import com.markazsayana.app.util.egpCompact
 
@@ -52,7 +54,9 @@ fun ReportsScreen(
     viewModel: ReportsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    RefreshOnResume(viewModel::refresh)
     val exporting by viewModel.exporting.collectAsState()
+    val exportError by viewModel.exportError.collectAsState()
     val exportedFile by viewModel.exportedFile.collectAsState()
     val context = LocalContext.current
 
@@ -64,7 +68,8 @@ fun ReportsScreen(
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(intent, "مشاركة التقرير"))
+        try { context.startActivity(Intent.createChooser(intent, "مشاركة التقرير")) }
+        catch (e: android.content.ActivityNotFoundException) { viewModel.reportShareFailure() }
         viewModel.consumeExportedFile()
     }
 
@@ -78,6 +83,7 @@ fun ReportsScreen(
             is ReportsUiState.Success -> Content(
                 state = s,
                 exporting = exporting,
+                exportError = exportError,
                 onPeriodChange = viewModel::load,
                 onExport = viewModel::export,
                 modifier = Modifier.padding(padding),
@@ -90,6 +96,7 @@ fun ReportsScreen(
 private fun Content(
     state: ReportsUiState.Success,
     exporting: Boolean,
+    exportError: String?,
     onPeriodChange: (String) -> Unit,
     onExport: () -> Unit,
     modifier: Modifier,
@@ -116,8 +123,8 @@ private fun Content(
         LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             item { TotalsCard(data) }
             item { ExportRow(exporting = exporting, onExport = onExport) }
+            exportError?.let { item { Text(it, color = UrgentRed, style = MaterialTheme.typography.bodySmall) } }
             item { BreakdownCard(title = "حسب الفني", rows = data.byTechnician.map { Triple(it.name, it.completedCount, it.revenue) }) }
-            item { BreakdownCard(title = "حسب الفرع", rows = data.byBranch.map { Triple(it.branch, it.completedCount, it.revenue) }) }
             item { BreakdownCard(title = "حسب نوع الجهاز", rows = data.byDeviceType.map { Triple(it.deviceType, it.completedCount, it.revenue) }) }
         }
     }
@@ -150,7 +157,7 @@ private fun ExportRow(exporting: Boolean, onExport: () -> Unit) {
 }
 
 @Composable
-private fun BreakdownCard(title: String, rows: List<Triple<String, Int, Int>>) {
+private fun BreakdownCard(title: String, rows: List<Triple<String, Int, Double>>) {
     if (rows.isEmpty()) return
     OutlinedCard {
         Text(text = title, style = MaterialTheme.typography.titleSmall, color = TextPrimary)

@@ -2,7 +2,7 @@ package com.markazsayana.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Brand — matched to the United Engineering logo (navy + orange)
+// Navy and orange follow the maintenance center's supplied United Engineering logo.
 val BrandNavy = Color(0xFF000F50)
 val BrandNavyDark = Color(0xFF000A38)
 val BrandNavyChipBg = Color(0xFFE3E6F5)
@@ -17,8 +17,8 @@ val UrgentRed = Color(0xFFC2410C)
 
 val SuccessGreen = Color(0xFF147A45)
 
-val SurfacePage = Color(0xFFE7E9E8)
-val SurfaceScreen = Color(0xFFF5F6F4)
+val SurfacePage = Color(0xFFF0F2F7)
+val SurfaceScreen = Color(0xFFF6F7FB)
 val SurfaceDark = Color(0xFF14181A)
 val CardWhite = Color(0xFFFFFFFF)
 

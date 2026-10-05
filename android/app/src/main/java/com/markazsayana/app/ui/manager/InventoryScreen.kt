@@ -14,13 +14,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,12 +38,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.markazsayana.app.data.remote.InventoryItemDto
+import com.markazsayana.app.data.remote.SaveInventoryItemRequest
 import com.markazsayana.app.ui.components.BottomNavBar
 import com.markazsayana.app.ui.components.FullScreenError
 import com.markazsayana.app.ui.components.FullScreenLoading
 import com.markazsayana.app.ui.components.OutlinedCard
 import com.markazsayana.app.ui.components.navItemsForRole
 import com.markazsayana.app.ui.navigation.Routes
+import com.markazsayana.app.ui.workorders.RefreshOnResume
 import com.markazsayana.app.ui.theme.AccentOrange
 import com.markazsayana.app.ui.theme.BorderMedium
 import com.markazsayana.app.ui.theme.CardShape
@@ -62,6 +70,17 @@ fun InventoryScreen(
     viewModel: InventoryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val itemSaved by viewModel.itemSaved.collectAsState()
+    var showItemEditor by remember { mutableStateOf(false) }
+    var editingItem by remember { mutableStateOf<InventoryItemDto?>(null) }
+    RefreshOnResume { if (!showItemEditor) viewModel.refresh() }
+    val success = state as? InventoryUiState.Success
+    LaunchedEffect(itemSaved) {
+        if (itemSaved) {
+            showItemEditor = false
+            viewModel.resetItemSaved()
+        }
+    }
     val activeColor = if (role == "reception") BrandNavy else SurfaceDark
 
     Scaffold(
@@ -70,18 +89,33 @@ fun InventoryScreen(
     ) { padding ->
         when (val s = state) {
             is InventoryUiState.Loading -> FullScreenLoading(Modifier.padding(padding))
-            is InventoryUiState.Error -> FullScreenError(s.message, onRetry = { viewModel.load("low") }, modifier = Modifier.padding(padding))
-            is InventoryUiState.Success -> InventoryContent(s, canOrder = role == "manager" || role == "technician", onFilterChange = viewModel::load, onOrder = viewModel::createPurchaseOrder, modifier = Modifier.padding(padding))
+            is InventoryUiState.Error -> FullScreenError(s.message, onRetry = { viewModel.load("all") }, modifier = Modifier.padding(padding))
+            is InventoryUiState.Success -> InventoryContent(
+                s, canOrder = role == "manager", canManage = role == "manager",
+                onFilterChange = viewModel::load, onOrder = viewModel::createPurchaseOrder,
+                onCreate = { editingItem = null; viewModel.resetItemSaved(); showItemEditor = true },
+                onEdit = { editingItem = it; viewModel.resetItemSaved(); showItemEditor = true },
+                onReceive = viewModel::receivePurchaseOrder, modifier = Modifier.padding(padding),
+            )
         }
     }
+    if (showItemEditor && role == "manager") InventoryItemDialog(
+        item = editingItem, busy = success?.operationBusy == true, serverError = success?.operationError,
+        onDismiss = { if (success?.operationBusy != true) showItemEditor = false },
+        onSave = { viewModel.saveItem(editingItem?.id, it) },
+    )
 }
 
 @Composable
 private fun InventoryContent(
     state: InventoryUiState.Success,
     canOrder: Boolean,
+    canManage: Boolean,
     onFilterChange: (String) -> Unit,
     onOrder: (Int) -> Unit,
+    onCreate: () -> Unit,
+    onEdit: (InventoryItemDto) -> Unit,
+    onReceive: (Int) -> Unit,
     modifier: Modifier,
 ) {
     var search by remember { mutableStateOf("") }
@@ -92,6 +126,7 @@ private fun InventoryContent(
     Column(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxWidth().background(CardWhite).padding(16.dp)) {
             Text(text = "المخزون وقطع الغيار", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
+            if (canManage) TextButton(enabled = !state.operationBusy, onClick = onCreate) { Text("إضافة قطعة للمخزون") }
             OutlinedTextField(
                 value = search,
                 onValueChange = { search = it },
@@ -103,6 +138,8 @@ private fun InventoryContent(
         }
 
         LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            state.message?.let { item { Text(it, color = BrandNavy, style = MaterialTheme.typography.bodySmall) } }
+            state.operationError?.let { item { Text(it, color = UrgentRed, style = MaterialTheme.typography.bodySmall) } }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip("تحت الحد", state.filter == "low") { onFilterChange("low") }
@@ -114,7 +151,7 @@ private fun InventoryContent(
             if (visibleItems.isEmpty()) {
                 item {
                     Text(
-                        text = "لا توجد قطع مطابقة",
+                        text = if (search.isNotBlank()) "لا توجد قطع مطابقة للبحث." else if (canManage) "لا توجد قطع في هذه القائمة. يمكنك إضافة القطع من زر إضافة قطعة للمخزون." else "لا توجد قطع في هذه القائمة.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextTertiary,
                         modifier = Modifier.padding(vertical = 20.dp),
@@ -123,7 +160,19 @@ private fun InventoryContent(
             }
 
             items(visibleItems, key = { it.id }) { item ->
-                InventoryRow(item, canOrder = canOrder, onOrder = { onOrder(item.id) })
+                InventoryRow(item, canOrder = canOrder && !state.operationBusy, onOrder = { onOrder(item.id) }, onEdit = if (canManage) ({ onEdit(item) }) else null)
+            }
+
+            if (canManage && state.data.purchaseOrders.isNotEmpty()) {
+                item { Text("طلبات الشراء قيد الاستلام", style = MaterialTheme.typography.titleMedium, color = TextPrimary) }
+                items(state.data.purchaseOrders, key = { "purchase-${it.id}" }) { purchase ->
+                    OutlinedCard {
+                        Text(purchase.itemName ?: "طلب شراء رقم ${purchase.id.arabic()}", style = MaterialTheme.typography.titleSmall)
+                        Text("الكمية: ${purchase.quantity.arabic()}", style = MaterialTheme.typography.bodyMedium)
+                        purchase.workOrderCode?.let { Text("لطلب الصيانة $it", style = MaterialTheme.typography.bodySmall, color = TextTertiary) }
+                        Button(enabled = !state.operationBusy, onClick = { onReceive(purchase.id) }) { Text("تأكيد وصول القطع للمخزون") }
+                    }
+                }
             }
 
             item {
@@ -161,7 +210,7 @@ private fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun InventoryRow(item: InventoryItemDto, canOrder: Boolean, onOrder: () -> Unit) {
+private fun InventoryRow(item: InventoryItemDto, canOrder: Boolean, onOrder: () -> Unit, onEdit: (() -> Unit)? = null) {
     OutlinedCard(borderColor = if (item.lowStock) OrangeChipBorder else com.markazsayana.app.ui.theme.BorderLight) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.weight(1f)) {
@@ -177,8 +226,9 @@ private fun InventoryRow(item: InventoryItemDto, canOrder: Boolean, onOrder: () 
                 Text(text = "الحد ${item.reorderThreshold.arabic()}", style = MaterialTheme.typography.labelSmall, color = TextTertiary)
             }
         }
+        if (onEdit != null) TextButton(onClick = onEdit) { Text("تعديل بيانات القطعة والمخزون") }
         if (item.lowStock) {
-            val fraction = (item.quantity.toFloat() / item.reorderThreshold.toFloat()).coerceIn(0.05f, 1f)
+            val fraction = (item.quantity.toFloat() / item.reorderThreshold.coerceAtLeast(1).toFloat()).coerceIn(0.05f, 1f)
             Box(modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(6.dp).clip(RoundedCornerShape(3.dp)).background(Divider)) {
                 Box(modifier = Modifier.fillMaxWidth(fraction).height(6.dp).clip(RoundedCornerShape(3.dp)).background(UrgentRed))
             }
@@ -203,3 +253,53 @@ private fun InventoryRow(item: InventoryItemDto, canOrder: Boolean, onOrder: () 
         }
     }
 }
+
+@Composable
+private fun InventoryItemDialog(
+    item: InventoryItemDto?, busy: Boolean, serverError: String?, onDismiss: () -> Unit,
+    onSave: (SaveInventoryItemRequest) -> Unit,
+) {
+    var name by remember(item?.id) { mutableStateOf(item?.name.orEmpty()) }
+    var sku by remember(item?.id) { mutableStateOf(item?.sku.orEmpty()) }
+    var category by remember(item?.id) { mutableStateOf(item?.category.orEmpty()) }
+    var price by remember(item?.id) { mutableStateOf(item?.price?.toString() ?: "") }
+    var quantity by remember(item?.id) { mutableStateOf(item?.quantity?.toString() ?: "0") }
+    var threshold by remember(item?.id) { mutableStateOf(item?.reorderThreshold?.toString() ?: "0") }
+    var validationError by remember { mutableStateOf<String?>(null) }
+    AlertDialog(
+        onDismissRequest = { if (!busy) onDismiss() },
+        title = { Text(if (item == null) "إضافة قطعة غيار" else "تعديل قطعة غيار") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(name, { name = it }, label = { Text("اسم القطعة") }, enabled = !busy)
+                OutlinedTextField(sku, { sku = it }, label = { Text("كود القطعة") }, enabled = !busy)
+                OutlinedTextField(category, { category = it }, label = { Text("التصنيف (اختياري)") }, enabled = !busy)
+                OutlinedTextField(price, { price = it }, label = { Text("سعر الوحدة بالجنيه") }, enabled = !busy)
+                OutlinedTextField(quantity, { quantity = it }, label = { Text("الكمية الفعلية بالمخزون") }, enabled = !busy)
+                OutlinedTextField(threshold, { threshold = it }, label = { Text("حد التنبيه لإعادة الطلب") }, enabled = !busy)
+                (validationError ?: serverError)?.let { Text(it, color = UrgentRed, style = MaterialTheme.typography.bodySmall) }
+            }
+        },
+        confirmButton = { TextButton(enabled = !busy, onClick = {
+            val unitPrice = price.normalizedNumber().toDoubleOrNull()
+            val stock = quantity.normalizedNumber().toIntOrNull()
+            val reorder = threshold.normalizedNumber().toIntOrNull()
+            if (name.isBlank() || sku.isBlank() || unitPrice == null || !unitPrice.isFinite() || unitPrice < 0 || stock == null || stock < 0 || reorder == null || reorder < 0) {
+                validationError = "أدخل اسمًا وكودًا للقطعة، وسعرًا وكميات صحيحة لا تقل عن صفر."
+            } else {
+                validationError = null
+                onSave(SaveInventoryItemRequest(name.trim(), sku.trim(), category.trim().ifBlank { null }, unitPrice, stock, reorder))
+            }
+        }) { Text(if (busy) "جارِ الحفظ…" else "حفظ") } },
+        dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("رجوع") } },
+    )
+}
+
+private fun String.normalizedNumber(): String = trim().map { char ->
+    when (char) {
+        in '٠'..'٩' -> '0' + (char - '٠')
+        in '۰'..'۹' -> '0' + (char - '۰')
+        '٫' -> '.'
+        else -> char
+    }
+}.joinToString("")

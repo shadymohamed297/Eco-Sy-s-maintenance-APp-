@@ -37,6 +37,8 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun changePassword(currentPassword: String, newPassword: String) {
-        api.changePassword(ChangePasswordRequest(currentPassword, newPassword))
+        val response = api.changePassword(ChangePasswordRequest(currentPassword, newPassword))
+        tokenManager.save(response.token, response.user.role)
+        sessionState.set(response.user)
     }
 }

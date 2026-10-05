@@ -8,6 +8,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import java.io.File
 import javax.inject.Inject
 
@@ -30,32 +32,43 @@ class ReportsViewModel @Inject constructor(
 
     private val _exporting = MutableStateFlow(false)
     val exporting: StateFlow<Boolean> = _exporting
+    private val _exportError = MutableStateFlow<String?>(null)
+    val exportError: StateFlow<String?> = _exportError
+    private var request: Job? = null
+    private var currentPeriod = "month"
 
     init {
         load("month")
     }
 
     fun load(period: String) {
+        request?.cancel()
+        currentPeriod = period
         _uiState.value = ReportsUiState.Loading
-        viewModelScope.launch {
+        request = viewModelScope.launch {
             try {
                 _uiState.value = ReportsUiState.Success(period, repository.reports(period))
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _uiState.value = ReportsUiState.Error("تعذّر تحميل التقارير")
             }
         }
     }
+    fun refresh() = load(currentPeriod)
 
     fun export() {
         val current = _uiState.value
-        if (current !is ReportsUiState.Success) return
+        if (current !is ReportsUiState.Success || _exporting.value) return
         _exporting.value = true
+        _exportError.value = null
         viewModelScope.launch {
             try {
                 _exportedFile.value = repository.exportCsv(current.period)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                // Export failure just leaves the button available to retry; the on-screen
-                // report data itself already loaded fine, so nothing else needs to change.
+                _exportError.value = "تعذّر تجهيز ملف التقرير. حاول مرة أخرى."
             } finally {
                 _exporting.value = false
             }
@@ -65,4 +78,6 @@ class ReportsViewModel @Inject constructor(
     fun consumeExportedFile() {
         _exportedFile.value = null
     }
+
+    fun reportShareFailure() { _exportError.value = "تعذّر فتح قائمة المشاركة على هذا الجهاز." }
 }

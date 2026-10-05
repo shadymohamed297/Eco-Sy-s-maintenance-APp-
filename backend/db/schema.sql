@@ -146,3 +146,25 @@ CREATE TABLE IF NOT EXISTS work_order_photos (
   image_data TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Preserve an invoice's actual used-parts amount after closure. Legacy invoices
+-- remain NULL and are calculated from their existing parts without altering records.
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS parts_total NUMERIC(10, 2);
+
+-- Record future actions only: historical events are never fabricated.
+CREATE TABLE IF NOT EXISTS work_order_events (
+  id SERIAL PRIMARY KEY,
+  work_order_id INTEGER NOT NULL REFERENCES work_orders(id) ON DELETE CASCADE,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_work_order_events_order ON work_order_events(work_order_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_work_orders_scheduled ON work_orders(technician_id, scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
+
+-- Each visit keeps the address supplied for that repair; do not rewrite history.
+ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS service_address TEXT;

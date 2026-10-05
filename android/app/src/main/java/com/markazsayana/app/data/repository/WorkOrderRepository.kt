@@ -20,6 +20,8 @@ import com.markazsayana.app.data.remote.UploadPhotoRequest
 import com.markazsayana.app.data.remote.WorkOrderDto
 import com.markazsayana.app.data.remote.WorkOrderListResponse
 import com.markazsayana.app.data.remote.WorkOrderSummaryDto
+import com.markazsayana.app.data.remote.WorkOrdersListResponse
+import com.markazsayana.app.data.remote.UsePartRequest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -28,6 +30,13 @@ class WorkOrderRepository @Inject constructor(private val api: ApiService) {
 
     suspend fun listWorkOrders(status: String? = null, search: String? = null): List<WorkOrderSummaryDto> =
         api.listWorkOrders(status = status, search = search, limit = 100).items
+
+    suspend fun listWorkOrdersPage(
+        status: String? = null,
+        search: String? = null,
+        offset: Int = 0,
+        limit: Int = 30,
+    ): WorkOrdersListResponse = api.listWorkOrders(status = status, search = search, limit = limit, offset = offset)
 
     suspend fun findCustomerByPhone(phone: String): CustomerDto? = api.findCustomer(phone).customer
 
@@ -52,8 +61,9 @@ class WorkOrderRepository @Inject constructor(private val api: ApiService) {
         issueDescription: String,
         priority: String,
         branch: String?,
+        serviceAddress: String? = null,
     ): WorkOrderDto = api.createWorkOrder(
-        CreateWorkOrderRequest(customerId, deviceId, issueDescription, priority, branch)
+        CreateWorkOrderRequest(customerId, deviceId, issueDescription, priority, branch, serviceAddress)
     ).workOrder
 
     suspend fun availableTechnicians(): List<TechnicianDto> = api.technicians().technicians
@@ -74,6 +84,11 @@ class WorkOrderRepository @Inject constructor(private val api: ApiService) {
 
     suspend fun addPart(workOrderId: Int, name: String, inventoryItemId: Int?, status: String): WorkOrderDto =
         api.addPart(workOrderId, AddPartRequest(name, inventoryItemId, status)).workOrder
+
+    suspend fun removePart(workOrderId: Int, partId: Int): WorkOrderDto = api.deletePart(workOrderId, partId).workOrder
+
+    suspend fun useRequestedPart(workOrderId: Int, partId: Int, inventoryItemId: Int? = null): WorkOrderDto =
+        api.useRequestedPart(workOrderId, partId, UsePartRequest(inventoryItemId = inventoryItemId)).workOrder
 
     suspend fun invoicePreview(workOrderId: Int, laborFee: Double, warrantyDiscount: Double?): InvoicePreviewResponse =
         api.invoicePreview(workOrderId, laborFee, warrantyDiscount)

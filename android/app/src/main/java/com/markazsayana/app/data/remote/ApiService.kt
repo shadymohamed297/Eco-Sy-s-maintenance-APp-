@@ -2,6 +2,7 @@ package com.markazsayana.app.data.remote
 
 import okhttp3.ResponseBody
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
@@ -18,7 +19,7 @@ interface ApiService {
     suspend fun me(): MeResponse
 
     @POST("api/auth/change-password")
-    suspend fun changePassword(@Body request: ChangePasswordRequest): Unit
+    suspend fun changePassword(@Body request: ChangePasswordRequest): ChangePasswordResponse
 
     @GET("api/employees")
     suspend fun listEmployees(): EmployeesListResponse
@@ -71,6 +72,12 @@ interface ApiService {
     @POST("api/work-orders/{id}/parts")
     suspend fun addPart(@Path("id") id: Int, @Body request: AddPartRequest): WorkOrderResponse
 
+    @DELETE("api/work-orders/{id}/parts/{partId}")
+    suspend fun deletePart(@Path("id") id: Int, @Path("partId") partId: Int): WorkOrderResponse
+
+    @PATCH("api/work-orders/{id}/parts/{partId}")
+    suspend fun useRequestedPart(@Path("id") id: Int, @Path("partId") partId: Int, @Body request: UsePartRequest): WorkOrderResponse
+
     @GET("api/work-orders/{id}/invoice-preview")
     suspend fun invoicePreview(
         @Path("id") id: Int,
@@ -105,6 +112,15 @@ interface ApiService {
     @GET("api/inventory")
     suspend fun inventory(@Query("filter") filter: String = "all"): InventoryResponse
 
+    @POST("api/inventory")
+    suspend fun createInventoryItem(@Body request: SaveInventoryItemRequest): InventoryItemResponse
+
+    @PATCH("api/inventory/{id}")
+    suspend fun updateInventoryItem(@Path("id") id: Int, @Body request: SaveInventoryItemRequest): InventoryItemResponse
+
+    @POST("api/inventory/purchase-orders/{id}/receive")
+    suspend fun receivePurchaseOrder(@Path("id") id: Int): InventoryPurchaseOrderResponse
+
     @POST("api/inventory/{id}/purchase-order")
     suspend fun createPurchaseOrder(@Path("id") id: Int, @Body request: PurchaseOrderRequest): Unit
 
@@ -129,6 +145,19 @@ interface ApiService {
 
     @GET("api/technicians/roster")
     suspend fun technicianRoster(): TechnicianRosterResponse
+
+    @GET("api/technicians/{id}/itinerary")
+    suspend fun technicianItinerary(
+        @Path("id") id: Int,
+        @Query("date") date: String,
+    ): TechnicianItineraryResponse
+
+    @GET("api/technicians/{id}/history")
+    suspend fun technicianHistory(
+        @Path("id") id: Int,
+        @Query("limit") limit: Int = 30,
+        @Query("offset") offset: Int = 0,
+    ): WorkOrdersListResponse
 
     @GET("api/technicians/me/performance")
     suspend fun myPerformance(): TechnicianPerformanceResponse

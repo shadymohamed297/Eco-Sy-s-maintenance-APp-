@@ -9,16 +9,17 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -30,26 +31,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.markazsayana.app.data.remote.EmployeeDto
+import com.markazsayana.app.ui.components.BrandHeader
 import com.markazsayana.app.ui.components.FullScreenError
 import com.markazsayana.app.ui.components.FullScreenLoading
 import com.markazsayana.app.ui.components.OutlinedCard
 import com.markazsayana.app.ui.components.PrimaryButton
 import com.markazsayana.app.ui.components.StatusChip
+import com.markazsayana.app.ui.components.westernDigits
+import com.markazsayana.app.ui.theme.BrandNavy
+import com.markazsayana.app.ui.theme.BrandNavyChipBg
 import com.markazsayana.app.ui.theme.CardWhite
 import com.markazsayana.app.ui.theme.OrangeChipBg
 import com.markazsayana.app.ui.theme.OrangeTextDark
-import com.markazsayana.app.ui.theme.BrandNavy
-import com.markazsayana.app.ui.theme.BrandNavyChipBg
-import com.markazsayana.app.ui.theme.SurfaceDark
 import com.markazsayana.app.ui.theme.SurfaceScreen
-import com.markazsayana.app.ui.theme.TextOnDarkMuted
 import com.markazsayana.app.ui.theme.TextPrimary
 import com.markazsayana.app.ui.theme.TextTertiary
 import com.markazsayana.app.ui.theme.UrgentRed
@@ -62,285 +62,170 @@ private fun roleLabel(role: String): String = when (role) {
 }
 
 @Composable
-fun EmployeesScreen(
-    onBack: () -> Unit,
-    viewModel: EmployeesViewModel = hiltViewModel(),
-) {
+fun EmployeesScreen(onBack: () -> Unit, viewModel: EmployeesViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
     val temporaryPassword by viewModel.temporaryPassword.collectAsState()
     val actionError by viewModel.actionError.collectAsState()
+    val busy by viewModel.actionInProgress.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var editingEmployee by remember { mutableStateOf<EmployeeDto?>(null) }
+    var search by remember { mutableStateOf("") }
 
     Scaffold(containerColor = SurfaceScreen) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().background(SurfaceDark).padding(16.dp),
-            ) {
-                Text(text = "◀", color = CardWhite, modifier = Modifier.clickable { onBack() }.padding(end = 12.dp))
-                Column {
-                    Text(text = "إدارة الموظفين", style = MaterialTheme.typography.titleLarge, color = CardWhite)
-                    Text(text = "إضافة موظفين جدد وإيقاف حسابات من غادروا", style = MaterialTheme.typography.bodySmall, color = TextOnDarkMuted)
+        Column(Modifier.padding(padding).fillMaxSize()) {
+            Column(Modifier.fillMaxWidth().background(BrandNavy).padding(16.dp)) {
+                BrandHeader(compact = true, onDark = true)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = onBack) { Text("رجوع", color = CardWhite) }
+                    Column {
+                        Text("حسابات الفريق", style = MaterialTheme.typography.titleLarge, color = CardWhite)
+                        Text("بيانات الموظفين وصلاحياتهم وحالة حساباتهم", style = MaterialTheme.typography.bodySmall, color = CardWhite.copy(alpha = 0.8f))
+                    }
                 }
             }
-
+            OutlinedTextField(
+                value = search, onValueChange = { search = it }, label = { Text("ابحث بالاسم أو الهاتف أو الوظيفة") },
+                singleLine = true, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            )
             when (val s = state) {
-                is EmployeesUiState.Loading -> FullScreenLoading(Modifier.weight(1f))
-                is EmployeesUiState.Error -> FullScreenError(s.message, onRetry = viewModel::load, modifier = Modifier.weight(1f))
+                EmployeesUiState.Loading -> FullScreenLoading(Modifier.weight(1f))
+                is EmployeesUiState.Error -> FullScreenError(s.message, viewModel::load, Modifier.weight(1f))
                 is EmployeesUiState.Success -> {
-                    if (s.employees.isEmpty()) {
-                        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            Text(text = "لا يوجد موظفون بعد", style = MaterialTheme.typography.bodyMedium, color = TextTertiary)
+                    val filtered = s.employees.filter { employee ->
+                        search.isBlank() || listOf(employee.name, employee.phone.orEmpty(), employee.email.orEmpty(), roleLabel(employee.role)).any { it.contains(search.trim(), ignoreCase = true) }
+                    }
+                    if (filtered.isEmpty()) {
+                        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Text(if (search.isBlank()) "لا توجد حسابات مسجلة" else "لا توجد نتائج لهذا البحث", color = TextTertiary)
                         }
                     } else {
-                        LazyColumn(
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            items(s.employees, key = { it.id }) { emp ->
-                                EmployeeRow(emp, onClick = { editingEmployee = emp })
+                        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            items(filtered, key = { it.id }) { employee ->
+                                OutlinedCard(modifier = Modifier.clickable(enabled = !busy) { editingEmployee = employee }) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text(employee.name, style = MaterialTheme.typography.titleSmall, color = TextPrimary, modifier = Modifier.weight(1f))
+                                        StatusChip(roleLabel(employee.role), BrandNavyChipBg, BrandNavy)
+                                        if (!employee.active) StatusChip("موقوف", OrangeChipBg, OrangeTextDark)
+                                    }
+                                    Text(listOfNotNull(employee.phone, employee.email).joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = TextTertiary, modifier = Modifier.padding(top = 6.dp))
+                                    employee.specialty?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = TextTertiary) }
+                                }
                             }
                         }
                     }
                 }
             }
-
-            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                PrimaryButton(text = "+ إضافة موظف جديد", onClick = { showAddDialog = true })
-            }
+            PrimaryButton("إضافة موظف", { showAddDialog = true }, enabled = !busy, modifier = Modifier.padding(16.dp))
         }
     }
-
     if (showAddDialog) {
-        AddEmployeeDialog(
-            onDismiss = { showAddDialog = false },
-            onCreate = { name, role, email, phone, branch, title, specialty ->
-                viewModel.createEmployee(name, role, email, phone, branch, title, specialty)
-                showAddDialog = false
+        EmployeeFormDialog(
+            employee = null, isSelf = false, busy = busy,
+            onDismiss = { if (!busy) showAddDialog = false },
+            onSave = { name, role, email, phone, title, specialty ->
+                viewModel.createEmployee(name, role, email, phone, title, specialty) { showAddDialog = false }
             },
         )
     }
-
-    editingEmployee?.let { emp ->
-        EditEmployeeDialog(
-            employee = emp,
-            isSelf = emp.id == viewModel.currentUserId,
-            onDismiss = { editingEmployee = null },
-            onSave = { name, branch, title, specialty ->
-                viewModel.updateEmployee(emp.id, name, branch, title, specialty)
-                editingEmployee = null
+    editingEmployee?.let { employee ->
+        EmployeeFormDialog(
+            employee = employee, isSelf = employee.id == viewModel.currentUserId, busy = busy,
+            onDismiss = { if (!busy) editingEmployee = null },
+            onSave = { name, role, email, phone, title, specialty ->
+                viewModel.updateEmployee(employee.id, name, role, email, phone, title, specialty) { editingEmployee = null }
             },
-            onToggleActive = { active ->
-                viewModel.setActive(emp.id, active)
-                editingEmployee = null
-            },
-            onResetPassword = {
-                viewModel.resetPassword(emp.id, emp.name)
-                editingEmployee = null
-            },
+            onToggleActive = { active -> viewModel.setActive(employee.id, active) { editingEmployee = null } },
+            onResetPassword = { viewModel.resetPassword(employee.id, employee.name) { editingEmployee = null } },
         )
     }
-
-    temporaryPassword?.let { (name, password) ->
-        TemporaryPasswordDialog(name = name, password = password, onDismiss = viewModel::dismissTemporaryPassword)
-    }
-
+    temporaryPassword?.let { (name, password) -> TemporaryPasswordDialog(name, password, viewModel::dismissTemporaryPassword) }
     actionError?.let { message ->
         AlertDialog(
-            onDismissRequest = viewModel::dismissActionError,
-            title = { Text("حدث خطأ") },
-            text = { Text(message) },
-            confirmButton = { TextButton(onClick = viewModel::dismissActionError) { Text("حسناً", color = BrandNavy) } },
+            onDismissRequest = viewModel::dismissActionError, title = { Text("تعذّر تنفيذ التغيير") }, text = { Text(message) },
+            confirmButton = { TextButton(onClick = viewModel::dismissActionError) { Text("حسنًا") } },
         )
     }
 }
 
 @Composable
-private fun EmployeeRow(emp: EmployeeDto, onClick: () -> Unit) {
-    OutlinedCard(modifier = Modifier.clickable { onClick() }) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(text = emp.name, style = MaterialTheme.typography.bodyLarge, color = TextPrimary)
-                    StatusChip(text = roleLabel(emp.role), background = BrandNavyChipBg, contentColor = BrandNavy)
-                    if (!emp.active) {
-                        StatusChip(text = "موقوف", background = OrangeChipBg, contentColor = OrangeTextDark)
-                    }
+private fun RolePicker(role: String, enabled: Boolean, onSelect: (String) -> Unit) {
+    Column {
+        Text("صلاحية الحساب", style = MaterialTheme.typography.labelLarge, color = TextTertiary)
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            listOf("reception", "technician", "manager").forEach { option ->
+                TextButton(enabled = enabled, onClick = { onSelect(option) }, modifier = Modifier.weight(1f)) {
+                    Text(roleLabel(option), color = if (role == option) BrandNavy else TextTertiary,
+                        style = if (role == option) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium)
                 }
-                Text(
-                    text = listOfNotNull(emp.branch, emp.email ?: emp.phone).joinToString(" · "),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextTertiary,
-                    modifier = Modifier.padding(top = 3.dp),
-                )
             }
         }
     }
 }
 
 @Composable
-private fun AddEmployeeDialog(
-    onDismiss: () -> Unit,
-    onCreate: (name: String, role: String, email: String?, phone: String?, branch: String?, title: String?, specialty: String?) -> Unit,
+private fun EmployeeFormDialog(
+    employee: EmployeeDto?, isSelf: Boolean, busy: Boolean, onDismiss: () -> Unit,
+    onSave: (String, String, String, String, String, String) -> Unit,
+    onToggleActive: (Boolean) -> Unit = {}, onResetPassword: () -> Unit = {},
 ) {
-    var name by remember { mutableStateOf("") }
-    var role by remember { mutableStateOf("reception") }
-    var email by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
-    var branch by remember { mutableStateOf("") }
-    var specialty by remember { mutableStateOf("") }
-    var roleMenuExpanded by remember { mutableStateOf(false) }
-
-    val canSubmit = name.isNotBlank() && (email.isNotBlank() || phone.isNotBlank())
+    var name by remember(employee?.id) { mutableStateOf(employee?.name.orEmpty()) }
+    var role by remember(employee?.id) { mutableStateOf(employee?.role ?: "reception") }
+    var email by remember(employee?.id) { mutableStateOf(employee?.email.orEmpty()) }
+    var phone by remember(employee?.id) { mutableStateOf(employee?.phone.orEmpty()) }
+    var title by remember(employee?.id) { mutableStateOf(employee?.title.orEmpty()) }
+    var specialty by remember(employee?.id) { mutableStateOf(employee?.specialty.orEmpty()) }
+    var confirming by remember { mutableStateOf<String?>(null) }
+    val emailValid = email.isBlank() || email.trim().matches(Regex("[^\\s@]+@[^\\s@]+\\.[^\\s@]+"))
+    val phoneValid = phone.isBlank() || (phone.trim().matches(Regex("[+0-9\\s-]{8,20}")) && phone.count(Char::isDigit) >= 8)
+    val canSubmit = name.trim().length >= 2 && (email.isNotBlank() || phone.isNotBlank()) && emailValid && phoneValid && !busy
 
     AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("إضافة موظف جديد") },
+        onDismissRequest = { if (!busy) onDismiss() }, title = { Text(if (employee == null) "إضافة موظف" else "بيانات ${employee.name}") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
-                    value = name, onValueChange = { name = it }, label = { Text("الاسم") }, singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy), modifier = Modifier.fillMaxWidth(),
-                )
-                Box {
-                    OutlinedTextField(
-                        value = roleLabel(role), onValueChange = {}, readOnly = true, label = { Text("الوظيفة") },
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy),
-                        modifier = Modifier.fillMaxWidth().clickable { roleMenuExpanded = true },
-                    )
-                    DropdownMenu(expanded = roleMenuExpanded, onDismissRequest = { roleMenuExpanded = false }) {
-                        listOf("reception", "technician", "manager").forEach { r ->
-                            DropdownMenuItem(text = { Text(roleLabel(r)) }, onClick = { role = r; roleMenuExpanded = false })
-                        }
+            Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(name, { name = it }, label = { Text("اسم الموظف") }, enabled = !busy, singleLine = true, modifier = Modifier.fillMaxWidth())
+                RolePicker(role, enabled = !busy && !isSelf) { role = it }
+                Text("أضف رقم الهاتف أو البريد الإلكتروني الذي سيستخدمه الموظف للدخول", style = MaterialTheme.typography.bodySmall, color = TextTertiary)
+                OutlinedTextField(phone, { phone = westernDigits(it) }, label = { Text("رقم الهاتف") }, isError = !phoneValid, enabled = !busy, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(email, { email = it }, label = { Text("البريد الإلكتروني") }, isError = !emailValid, enabled = !busy, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(title, { title = it }, label = { Text("المسمى الوظيفي (اختياري)") }, enabled = !busy, singleLine = true, modifier = Modifier.fillMaxWidth())
+                if (role == "technician") OutlinedTextField(specialty, { specialty = it }, label = { Text("تخصص الفني") }, enabled = !busy, singleLine = true, modifier = Modifier.fillMaxWidth())
+                if (employee != null && !isSelf) {
+                    TextButton(enabled = !busy, onClick = { confirming = "password" }) { Text("إعادة تعيين كلمة المرور") }
+                    TextButton(enabled = !busy, onClick = { if (employee.active) confirming = "deactivate" else onToggleActive(true) }) {
+                        Text(if (employee.active) "إيقاف الحساب" else "تفعيل الحساب", color = if (employee.active) UrgentRed else BrandNavy)
                     }
                 }
-                OutlinedTextField(
-                    value = email, onValueChange = { email = it }, label = { Text("البريد الإلكتروني (اختياري)") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy), modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = phone, onValueChange = { phone = it }, label = { Text("رقم الهاتف (اختياري)") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy), modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = branch, onValueChange = { branch = it }, label = { Text("الفرع") }, singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy), modifier = Modifier.fillMaxWidth(),
-                )
-                if (role == "technician") {
-                    OutlinedTextField(
-                        value = specialty, onValueChange = { specialty = it }, label = { Text("التخصص") }, singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy), modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+                if (busy) CircularProgressIndicator(color = BrandNavy)
             }
         },
-        confirmButton = {
-            TextButton(
-                enabled = canSubmit,
-                onClick = { onCreate(name.trim(), role, email.trim(), phone.trim(), branch.trim(), null, specialty.trim()) },
-            ) { Text("إضافة", color = if (canSubmit) BrandNavy else TextTertiary) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("إلغاء", color = TextTertiary) } },
+        confirmButton = { TextButton(enabled = canSubmit, onClick = { onSave(name, role, email, phone, title, if (role == "technician") specialty else "") }) { Text(if (busy) "جارٍ الحفظ…" else "حفظ") } },
+        dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("إلغاء") } },
     )
-}
-
-@Composable
-private fun EditEmployeeDialog(
-    employee: EmployeeDto,
-    isSelf: Boolean,
-    onDismiss: () -> Unit,
-    onSave: (name: String, branch: String?, title: String?, specialty: String?) -> Unit,
-    onToggleActive: (Boolean) -> Unit,
-    onResetPassword: () -> Unit,
-) {
-    var name by remember { mutableStateOf(employee.name) }
-    var branch by remember { mutableStateOf(employee.branch ?: "") }
-    var specialty by remember { mutableStateOf(employee.specialty ?: "") }
-    var confirmDeactivate by remember { mutableStateOf(false) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(roleLabel(employee.role)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
-                    value = name, onValueChange = { name = it }, label = { Text("الاسم") }, singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy), modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = branch, onValueChange = { branch = it }, label = { Text("الفرع") }, singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy), modifier = Modifier.fillMaxWidth(),
-                )
-                if (employee.role == "technician") {
-                    OutlinedTextField(
-                        value = specialty, onValueChange = { specialty = it }, label = { Text("التخصص") }, singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy), modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-                TextButton(onClick = onResetPassword) { Text("إعادة تعيين كلمة المرور", color = BrandNavy) }
-                if (!isSelf) {
-                    if (employee.active) {
-                        TextButton(onClick = { confirmDeactivate = true }) { Text("إيقاف الحساب", color = UrgentRed) }
-                    } else {
-                        TextButton(onClick = { onToggleActive(true) }) { Text("إعادة تفعيل الحساب", color = BrandNavy) }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onSave(name.trim(), branch.trim(), null, specialty.trim()) }) { Text("حفظ", color = BrandNavy) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("إغلاق", color = TextTertiary) } },
-    )
-
-    if (confirmDeactivate) {
+    confirming?.let { action ->
         AlertDialog(
-            onDismissRequest = { confirmDeactivate = false },
-            title = { Text("إيقاف الحساب؟") },
-            text = { Text("${employee.name} لن يستطيع تسجيل الدخول بعد الآن حتى تُعيد تفعيل حسابه.") },
-            confirmButton = {
-                TextButton(onClick = { confirmDeactivate = false; onToggleActive(false) }) { Text("إيقاف", color = UrgentRed) }
-            },
-            dismissButton = { TextButton(onClick = { confirmDeactivate = false }) { Text("تراجع", color = TextTertiary) } },
+            onDismissRequest = { confirming = null },
+            title = { Text(if (action == "password") "تغيير كلمة مرور الموظف؟" else "إيقاف حساب الموظف؟") },
+            text = { Text(if (action == "password") "سيتم إلغاء كلمة المرور القديمة وجلسات الدخول الحالية، وستظهر كلمة مرور جديدة لتسليمها للموظف." else "لن يتمكن ${employee?.name} من الدخول إلى النظام حتى تفعّل حسابه مرة أخرى.") },
+            confirmButton = { TextButton(enabled = !busy, onClick = { confirming = null; if (action == "password") onResetPassword() else onToggleActive(false) }) { Text("تأكيد", color = UrgentRed) } },
+            dismissButton = { TextButton(onClick = { confirming = null }) { Text("إلغاء") } },
         )
     }
 }
 
 @Composable
 private fun TemporaryPasswordDialog(name: String, password: String, onDismiss: () -> Unit) {
-    val clipboard: ClipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboardManager.current
+    var copied by remember { mutableStateOf(false) }
     AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("كلمة مرور $name") },
+        onDismissRequest = onDismiss, title = { Text("كلمة مرور $name") },
         text = {
-            Column {
-                Text(
-                    text = "شارك كلمة المرور هذه مع الموظف الآن — لن تظهر مرة أخرى بعد إغلاق هذه الرسالة.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextTertiary,
-                    modifier = Modifier.padding(bottom = 10.dp),
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(BrandNavyChipBg)
-                        .clickable { clipboard.setText(AnnotatedString(password)) }
-                        .padding(12.dp),
-                ) {
-                    Text(text = password, style = MaterialTheme.typography.titleMedium, color = BrandNavy)
-                }
-                Text(
-                    text = "اضغط لنسخ كلمة المرور",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextTertiary,
-                    modifier = Modifier.padding(top = 6.dp),
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("سلّم كلمة المرور للموظف بشكل خاص، واطلب منه تغييرها بعد الدخول. لن تظهر مرة أخرى بعد إغلاق هذه الرسالة.", style = MaterialTheme.typography.bodySmall, color = TextTertiary)
+                Text(password, style = MaterialTheme.typography.titleMedium, color = BrandNavy, modifier = Modifier.fillMaxWidth().background(BrandNavyChipBg).padding(12.dp))
+                TextButton(onClick = { clipboard.setText(AnnotatedString(password)); copied = true }) { Text(if (copied) "تم النسخ" else "نسخ كلمة المرور") }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("تم", color = BrandNavy) } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("تم") } },
     )
 }

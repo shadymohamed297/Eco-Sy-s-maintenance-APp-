@@ -1,70 +1,31 @@
-# Maintenance Center API
+# الهندسية المتحدة — API
 
-Backend for نظام مركز صيانة متكامل — a Cairo home-appliance maintenance center app
-(reception / field technician / manager roles).
+Express + PostgreSQL backend for the maintenance center at الحدايق. The Android app and customer website use the same API.
 
-## Setup
+## Local setup
 
-```bash
-npm install
-cp .env.example .env   # edit DATABASE_URL / JWT_SECRET
-createdb maintenance_center
-npm run migrate
-npm run seed
-npm start               # http://localhost:3000
-```
+1. Run `npm ci` and copy `.env.example` to `.env`.
+2. Set `DATABASE_URL` to a local development database and a random `JWT_SECRET`.
+3. Run `npm run migrate` to apply additive schema changes.
+4. On a **fresh empty database only**, set `MANAGER_NAME`, `MANAGER_EMAIL` or `MANAGER_PHONE`, and `MANAGER_PASSWORD` (12–72 bytes), then run `npm run bootstrap`.
+5. Run `npm start`. Sign in with your own manager account and add your employees and inventory from the app.
 
-Seeded accounts (password `Passw0rd!` for all):
+The bootstrap creates one real manager account. It never inserts customers, repair orders, stock, or sample invoices, and refuses to change an existing database. `npm run seed` is retained as an alias for the same safe bootstrap. There is no HTTP reset/seed endpoint.
 
-| role       | login                        |
-|------------|-------------------------------|
-| reception  | mona@markazsayana.eg          |
-| manager    | khaled@markazsayana.eg        |
-| technician | mahmoud@markazsayana.eg       |
-| technician | amr@markazsayana.eg           |
-| technician | mostafa@markazsayana.eg       |
+## Access and workflows
 
-## API summary
+- `/api/auth/login`, `/api/auth/me`, `/api/auth/change-password`
+- Manager/reception: customers, devices, order intake, scheduling, quote approval and rejection, order details, invoices.
+- Technician: assigned jobs, start/pause, checklist, photos, spare parts, price quote, invoice and signature.
+- Manager: employees, stock, reports and CSV, `/api/technicians/:id/itinerary?date=YYYY-MM-DD`, `/api/technicians/:id/history?limit=30&offset=0`.
+- Public: `/api/public/requests` and tracking by order code **and** customer phone.
 
-All endpoints except `/health` and `/api/auth/login` require
-`Authorization: Bearer <token>` from `POST /api/auth/login`.
+New records always belong to الحدايق. Historical data is preserved. Job changes record actor and time in the order activity log. Itinerary shows scheduled visits and their addresses/status; it is not live GPS tracking.
 
-- `POST /api/auth/login` `{ identifier, password }`
-- `GET /api/auth/me`
-- `GET /api/dashboard/reception`
-- `GET /api/dashboard/manager?period=month|quarter|year`
-- `GET /api/technicians` — available technicians for assignment
-- `GET /api/work-orders/customers?phone=` / `POST /api/work-orders/customers`
-- `POST /api/work-orders/devices`
-- `POST /api/work-orders` — create intake
-- `PATCH /api/work-orders/:id/assign` `{ technicianId, scheduledAt }`
-- `GET /api/work-orders/mine` — technician's today tasks
-- `GET /api/work-orders/:id`
-- `POST /api/work-orders/:id/start` / `/pause`
-- `PATCH /api/work-orders/checklist-items/:itemId` `{ status, note }`
-- `POST /api/work-orders/:id/parts` `{ name, inventoryItemId, status }`
-- `GET /api/work-orders/:id/invoice-preview`
-- `POST /api/work-orders/:id/close` `{ laborFee, warrantyDiscount, paymentMethod, signatureName, customerRating }`
-- `GET /api/work-orders?status=&branch=&search=&limit=&offset=` — filterable list (all orders, not just today's)
-- `GET /api/inventory?filter=all|low|pending`
-- `POST /api/inventory/:id/purchase-order`
-- `GET /api/customers?search=&limit=&offset=`
-- `GET /api/customers/:id` — devices + full work-order history
-- `GET /api/technicians/roster` (manager) — every technician with monthly stats
-- `GET /api/technicians/me/performance` (technician) — self stats + recent closed orders
-- `GET /api/reports?period=month|quarter|year` (manager) — totals + breakdown by technician/branch/device
-- `GET /api/reports/export?period=` (manager) — CSV download of closed orders in that period
+Password changes and resets invalidate older sessions; the app keeps the new token after a user changes their own password. Role changes take effect immediately. Closed invoices preserve their original parts totals.
 
-## Production notes
+## Verification
 
-- **Startup guard**: refuses to boot with `NODE_ENV=production` unless a real `JWT_SECRET` is
-  set (not the `.env.example` placeholder).
-- **Crash safety**: `express-async-errors` is required before any routes so a rejected promise
-  in an async handler returns a clean 500 instead of crashing the process; `db.js` also attaches
-  a `pool.on('error', ...)` listener — without it, a background Postgres hiccup on an idle
-  pooled client crashes the whole server (a real `node-postgres` gotcha, not hypothetical —
-  it happened during development and is what led to both fixes).
-- **TLS**: `db.js` auto-enables SSL when `DATABASE_URL` contains `sslmode=require` or
-  `NODE_ENV=production`, for managed providers like Neon.
-- See `../DEPLOY.md` for a full free-hosting walkthrough (Neon + Render, no credit card, no
-  server to manage).
+CI uses an isolated database whose name ends in `_test`, `NODE_ENV=test`, and `test/fixtures.js`. This fixture loader is guarded and cannot run against an operational database. Run `npm test` with `TEST_BASE_URL` pointing to the locally running test API after loading fixtures. Never load test fixtures into a real store.
+
+Existing operational demo records are **not deleted automatically** by a deployment. Identify and back up those records before any separately reviewed cleanup. No cleanup runs during migration or startup.
