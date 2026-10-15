@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-val DEVICE_TYPES = listOf("مكيف", "غسالة", "ثلاجة", "سخان", "بوتاجاز", "أخرى")
+val DEVICE_TYPES = listOf("مكيف", "غسالة", "ثلاجة", "سخان", "بوتاجاز", "ديب فريزر", "أخرى")
 
 enum class IntakeStep { CUSTOMER, DEVICE }
 

@@ -251,6 +251,7 @@ private fun deviceLabel(type: String): String = when (type) {
     "ثلاجة" -> "ثلاجات"
     "سخان" -> "سخانات"
     "بوتاجاز" -> "بوتاجاز"
+    "ديب فريزر" -> "أجهزة ديب فريزر"
     else -> type
 }
 

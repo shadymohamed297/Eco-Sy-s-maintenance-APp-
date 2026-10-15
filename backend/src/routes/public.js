@@ -4,7 +4,7 @@ const { pool } = require('../db');
 
 const router = express.Router();
 
-const DEVICE_TYPES = ['مكيف', 'غسالة', 'ثلاجة', 'سخان', 'بوتاجاز', 'أخرى'];
+const DEVICE_TYPES = ['مكيف', 'غسالة', 'ثلاجة', 'سخان', 'بوتاجاز', 'ديب فريزر', 'أخرى'];
 const BRANCHES = ['مدينة نصر', 'المعادي', 'الرحاب'];
 
 const STATUS_LABELS = {

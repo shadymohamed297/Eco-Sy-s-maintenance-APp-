@@ -146,3 +146,8 @@ CREATE TABLE IF NOT EXISTS work_order_photos (
   image_data TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Deep freezers are one of the center's advertised core services, alongside the original list.
+ALTER TABLE devices DROP CONSTRAINT IF EXISTS devices_device_type_check;
+ALTER TABLE devices ADD CONSTRAINT devices_device_type_check
+  CHECK (device_type IN ('مكيف', 'غسالة', 'ثلاجة', 'سخان', 'بوتاجاز', 'ديب فريزر', 'أخرى'));
